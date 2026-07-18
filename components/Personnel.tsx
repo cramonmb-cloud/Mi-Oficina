@@ -192,7 +192,7 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
   };
 
   const filteredEmployees = useMemo(() => {
-    return employees.filter(e => {
+    const list = employees.filter(e => {
       // 1. Filter by Category
       const matchesCategory = activeCategory === 'Todos' || e.category === activeCategory;
       
@@ -215,6 +215,13 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
       const matchesStatus = selectedStatusFilter ? (e.status || 'ACTIVO') === selectedStatusFilter : true;
 
       return matchesCategory && matchesSearch && matchesPlaza && matchesSupervisor && matchesStatus;
+    });
+
+    // Sort alphabetically by first name and last name
+    return list.sort((a, b) => {
+      const nameA = `${a.firstName || ''} ${a.lastName || ''}`.toLowerCase().trim();
+      const nameB = `${b.firstName || ''} ${b.lastName || ''}`.toLowerCase().trim();
+      return nameA.localeCompare(nameB);
     });
   }, [employees, activeCategory, searchTerm, selectedPlazaFilter, selectedSupervisorFilter, selectedStatusFilter]);
 

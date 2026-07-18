@@ -20,7 +20,8 @@ import {
   Wallet
 } from 'lucide-react';
 import { Employee, VacationRequest } from '../types';
-import { addVacationRequest, updateVacationRequest, deleteVacationRequest } from '../services/dbService';
+import { addVacationRequest, updateVacationRequest, deleteVacationRequest, getAppSettings } from '../services/dbService';
+import jsPDF from 'jspdf';
 
 const calculateReturnDate = (endDateStr: string): string => {
   try {
@@ -50,6 +51,20 @@ const isReturnDateInPast = (endDateStr: string): boolean => {
   const todayStr = `${yyyy}-${mm}-${dd}`;
   
   return returnDateStr < todayStr;
+};
+
+const formatDateToDDMMAA = (dateStr: string): string => {
+  try {
+    if (!dateStr || dateStr === 'N/R') return 'N/R';
+    const parts = dateStr.split('-');
+    if (parts.length !== 3) return dateStr;
+    const year = parts[0].substring(2); // "26"
+    const month = parts[1]; // "07"
+    const day = parts[2]; // "18"
+    return `${day}-${month}-${year}`;
+  } catch (e) {
+    return dateStr;
+  }
 };
 
 interface VacationsControlProps {
@@ -83,6 +98,10 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
     const saved = localStorage.getItem('vacationDaysPerYear');
     return saved ? parseInt(saved, 10) : 12;
   });
+  const [accumulationRule, setAccumulationRule] = useState<'accumulate' | 'reset-on-anniversary'>(() => {
+    const saved = localStorage.getItem('vacationAccumulationRule');
+    return (saved as 'accumulate' | 'reset-on-anniversary') || 'accumulate';
+  });
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -100,15 +119,23 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
   });
 
   useEffect(() => {
-    const handleChanged = () => {
+    const handleDaysChanged = () => {
       const saved = localStorage.getItem('vacationDaysPerYear');
       if (saved) {
         setDaysPerYear(parseInt(saved, 10));
       }
     };
-    window.addEventListener('vacationDaysPerYearChanged', handleChanged);
+    const handleRuleChanged = () => {
+      const saved = localStorage.getItem('vacationAccumulationRule');
+      if (saved) {
+        setAccumulationRule(saved as 'accumulate' | 'reset-on-anniversary');
+      }
+    };
+    window.addEventListener('vacationDaysPerYearChanged', handleDaysChanged);
+    window.addEventListener('vacationAccumulationRuleChanged', handleRuleChanged);
     return () => {
-      window.removeEventListener('vacationDaysPerYearChanged', handleChanged);
+      window.removeEventListener('vacationDaysPerYearChanged', handleDaysChanged);
+      window.removeEventListener('vacationAccumulationRuleChanged', handleRuleChanged);
     };
   }, []);
 
@@ -219,14 +246,47 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
       // Calculate completed years
       const yearsOfService = diffDays >= 0 ? Math.floor(diffDays / 365.25) : 0;
       
-      // 1 year complete = daysPerYear days automatically, 2 years = daysPerYear * 2 etc.
-      const totalEarned = yearsOfService >= 1 ? yearsOfService * daysPerYear : 0;
-      
       // Filter approved requests of type 'disponibles' (subtracted days)
       const empRequests = vacationRequests.filter(
         r => r.employeeId === emp.id && r.status === 'APROBADA' && r.type === 'disponibles'
       );
-      const used = empRequests.reduce((sum, r) => sum + r.totalDays, 0);
+
+      let totalEarned = 0;
+      let used = 0;
+
+      if (accumulationRule === 'reset-on-anniversary') {
+        const hireYear = hire.getFullYear();
+        const hireMonth = hire.getMonth();
+        const hireDay = hire.getDate();
+
+        // Calculate current anniversary year range
+        const lastAnniversary = new Date(hireYear + yearsOfService, hireMonth, hireDay);
+        const nextAnniversary = new Date(hireYear + yearsOfService + 1, hireMonth, hireDay);
+
+        totalEarned = yearsOfService >= 1 ? daysPerYear : 0;
+
+        // Sum only requests starting within the current anniversary period
+        used = empRequests.reduce((sum, r) => {
+          const reqStart = new Date(r.startDate + 'T00:00:00');
+          if (reqStart >= lastAnniversary && reqStart < nextAnniversary) {
+            return sum + r.totalDays;
+          }
+          return sum;
+        }, 0);
+      } else {
+        // 1 year complete = daysPerYear days automatically, 2 years = daysPerYear * 2 etc. (Accumulative)
+        totalEarned = yearsOfService >= 1 ? yearsOfService * daysPerYear : 0;
+        used = empRequests.reduce((sum, r) => sum + r.totalDays, 0);
+      }
+
+      // Apply manual adjustments if any
+      if (emp.vacationDaysEarnedAdjustment !== undefined && emp.vacationDaysEarnedAdjustment !== null) {
+        totalEarned = emp.vacationDaysEarnedAdjustment;
+      }
+      if (emp.vacationDaysUsedAdjustment !== undefined && emp.vacationDaysUsedAdjustment !== null) {
+        used = emp.vacationDaysUsedAdjustment;
+      }
+
       const balance = totalEarned - used;
       
       return {
@@ -309,7 +369,7 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
 
   // List of employees with details & balance
   const employeeBalances = useMemo(() => {
-    return employees
+    const list = employees
       .filter(e => e.status !== 'BAJA')
       .map(emp => {
         const stats = getEmployeeBalance(emp);
@@ -325,6 +385,13 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
         const position = (item.emp.position || '').toLowerCase();
         return fullName.includes(searchLower) || plaza.includes(searchLower) || position.includes(searchLower);
       });
+
+    // Sort alphabetically by first name and last name
+    return list.sort((a, b) => {
+      const nameA = `${a.emp.firstName || ''} ${a.emp.lastName || ''}`.toLowerCase().trim();
+      const nameB = `${b.emp.firstName || ''} ${b.emp.lastName || ''}`.toLowerCase().trim();
+      return nameA.localeCompare(nameB);
+    });
   }, [employees, vacationRequests, searchTerm]);
 
   // Filtered requests for the history table
@@ -353,6 +420,191 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
   }, [filteredRequests]);
 
   // generalStats removed as weekly calendar replaces the stats row
+
+  // Generate and Download detailed Vacation PDF in Monochrome
+  const downloadVacationPDF = async (req: VacationRequest, emp: Employee | undefined) => {
+    try {
+      const settings = await getAppSettings();
+      const company = settings.companyName || 'Nuestra Empresa';
+
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
+
+      // 1. Top Accent Line (Thick black line)
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(1.5);
+      doc.line(15, 12, pageWidth - 15, 12);
+
+      // 2. Header
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(16);
+      doc.setTextColor(0, 0, 0);
+      doc.text(company.toUpperCase(), 15, 20);
+
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(100, 100, 100);
+      doc.text("DEPARTAMENTO DE RECURSOS HUMANOS", 15, 25);
+
+      const numericFolio = req.folio || Math.floor(100000 + (req.createdAt ? new Date(req.createdAt).getTime() % 900000 : Math.random() * 900000));
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0, 0, 0);
+      doc.text(`SOLICITUD DE VACACIONES #${numericFolio}`, pageWidth - 15, 20, { align: 'right' });
+
+      doc.setFontSize(8);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(120, 120, 120);
+      doc.text(`Fecha Emisión: ${new Date().toLocaleDateString('es-ES')} | Emisor: ${req.registeredBy || 'Admin'}`, pageWidth - 15, 25, { align: 'right' });
+
+      // Separator
+      doc.setDrawColor(200, 200, 200);
+      doc.setLineWidth(0.5);
+      doc.line(15, 29, pageWidth - 15, 29);
+
+      // 3. Grid Table Layout
+      let currentY = 35;
+      const colWidth = (pageWidth - 30) / 2;
+
+      // Helper function to draw a section header row
+      const drawSectionHeader = (title: string) => {
+        doc.setFillColor(245, 245, 245);
+        doc.setDrawColor(0, 0, 0);
+        doc.setLineWidth(0.5);
+        doc.rect(15, currentY, pageWidth - 30, 8, 'FD');
+        
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(9);
+        doc.setTextColor(0, 0, 0);
+        doc.text(title, pageWidth / 2, currentY + 5.5, { align: 'center' });
+        currentY += 8;
+      };
+
+      // Helper function to draw a data row with 2 columns, dynamic height, and auto-wrapping
+      const drawDataRow = (label1: string, val1: string, label2: string, val2: string, highlightVal2 = false) => {
+        const textWidth = colWidth - 45; // Space for value
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8.5);
+        const lines1 = doc.splitTextToSize(val1, textWidth);
+        const lines2 = doc.splitTextToSize(val2, textWidth);
+
+        const rowHeight = Math.max(lines1.length, lines2.length) * 4.5 + 4; // Dynamic height based on lines
+
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.3);
+        // Draw bottom border
+        doc.line(15, currentY + rowHeight, pageWidth - 15, currentY + rowHeight);
+        // Draw vertical center border
+        doc.line(15 + colWidth, currentY, 15 + colWidth, currentY + rowHeight);
+
+        // Print Col 1 Label
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(8.5);
+        doc.setTextColor(50, 50, 50);
+        doc.text(label1, 18, currentY + 5.5);
+
+        // Print Col 1 Value (Wrapped)
+        doc.setFont("helvetica", "normal");
+        doc.setTextColor(0, 0, 0);
+        doc.text(lines1, 46, currentY + 5.5);
+
+        // Print Col 2 Label
+        doc.setFont("helvetica", "bold");
+        doc.setTextColor(50, 50, 50);
+        doc.text(label2, 15 + colWidth + 4, currentY + 5.5);
+
+        // Print Col 2 Value (Wrapped)
+        if (highlightVal2) {
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(10.5); // Larger and bolder for return date
+          doc.setTextColor(0, 0, 0);
+          doc.text(lines2, 15 + colWidth + 45, currentY + 6);
+        } else {
+          doc.setFont("helvetica", "normal");
+          doc.setTextColor(0, 0, 0);
+          doc.text(lines2, 15 + colWidth + 45, currentY + 5.5);
+        }
+
+        currentY += rowHeight;
+      };
+
+      // Draw Section 1: DATOS DEL COLABORADOR Y EMPRESA
+      drawSectionHeader("I. INFORMACIÓN DEL COLABORADOR");
+      drawDataRow("Nombre completo:", req.employeeName, "Folio de Permiso:", String(numericFolio));
+      drawDataRow("Categoría:", req.employeeCategory || 'N/R', "Puesto:", emp?.position || 'N/R');
+      drawDataRow("Plaza actual:", emp?.plaza || 'N/R', "Fecha Ingreso:", emp?.hireDate || 'N/R');
+      drawDataRow("Tipo de solicitud:", req.type === 'disponibles' ? 'A cuenta de vacaciones' : 'Descuento de nómina', "Estado Solicitud:", req.status);
+
+      currentY += 4; // space
+
+      // Draw Section 2: PERIODO Y DETALLES DE DÍAS
+      drawSectionHeader("II. DETALLES DEL PERIODO SOLICITADO");
+      drawDataRow("Fecha de inicio:", req.startDate, "Días solicitados:", `${req.totalDays} ${req.totalDays === 1 ? 'Día' : 'Días'}`);
+      drawDataRow("Fecha de término:", req.endDate, "Retorno a labores:", calculateReturnDate(req.endDate), true);
+
+      currentY += 4; // space
+
+      // Draw Section 3: Observaciones if any
+      if (req.notes) {
+        drawSectionHeader("III. OBSERVACIONES O COMENTARIOS");
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.3);
+        doc.line(15, currentY + 16, pageWidth - 15, currentY + 16);
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8.5);
+        doc.setTextColor(30, 30, 30);
+        const splitNotes = doc.splitTextToSize(req.notes, pageWidth - 36);
+        doc.text(splitNotes, 18, currentY + 6);
+        currentY += 16;
+      }
+
+      // Outer Frame Border to give it a neat paperwork receipt structure
+      doc.setDrawColor(0, 0, 0);
+      doc.setLineWidth(0.5);
+      doc.rect(15, 35, pageWidth - 30, currentY - 35, 'D');
+
+      // 4. Signatures
+      const signatureY = pageHeight - 45;
+      const sigLineWidth = 65;
+
+      // Left signature: Employee
+      doc.setDrawColor(120, 120, 120);
+      doc.setLineWidth(0.5);
+      doc.line(20, signatureY, 20 + sigLineWidth, signatureY);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text("CONFORMIDAD DEL COLABORADOR", 20 + (sigLineWidth / 2), signatureY + 4, { align: 'center' });
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(100, 100, 100);
+      doc.setFontSize(8);
+      doc.text("Firma autorizada del solicitante", 20 + (sigLineWidth / 2), signatureY + 8, { align: 'center' });
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0, 0, 0);
+      doc.text(req.employeeName.toUpperCase(), 20 + (sigLineWidth / 2), signatureY + 13, { align: 'center' });
+
+      // Right signature: Approver (Only "Firma de Recursos Humanos")
+      doc.line(pageWidth - 20 - sigLineWidth, signatureY, pageWidth - 20, signatureY);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text("AUTORIZADO POR", pageWidth - 20 - (sigLineWidth / 2), signatureY + 4, { align: 'center' });
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(100, 100, 100);
+      doc.setFontSize(8);
+      doc.text("Firma de Recursos Humanos", pageWidth - 20 - (sigLineWidth / 2), signatureY + 8, { align: 'center' });
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(0, 0, 0);
+      doc.text((req.registeredBy || 'ADMINISTRACIÓN').toUpperCase(), pageWidth - 20 - (sigLineWidth / 2), signatureY + 13, { align: 'center' });
+
+      // Save PDF
+      doc.save(`Solicitud_Vacaciones_${req.employeeName.replace(/\s+/g, '_')}_${req.startDate}.pdf`);
+    } catch (e) {
+      console.error("Error generating PDF:", e);
+      alert("Hubo un error al generar el PDF.");
+    }
+  };
 
   // Submit Request Action
   const handleSubmit = async (e: React.FormEvent) => {
@@ -384,7 +636,15 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
     try {
       setLoading(true);
       const emp = employees.find(e => e.id === selectedEmpId)!;
-      await addVacationRequest({
+      const maxFolio = vacationRequests.reduce((max, r) => {
+        if (r.folio && typeof r.folio === 'number') {
+          return r.folio > max ? r.folio : max;
+        }
+        return max;
+      }, 22780);
+      const generatedFolio = maxFolio + 1;
+      const docRef = await addVacationRequest({
+        folio: generatedFolio,
         employeeId: emp.id,
         employeeName: `${emp.firstName} ${emp.lastName}`,
         employeeCategory: emp.category,
@@ -396,6 +656,26 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
         notes: notes.trim() || "",
         registeredBy: authorizedBy.trim() || 'Admin'
       });
+
+      // Prepare request data with generated id
+      const createdRequest: VacationRequest = {
+        id: docRef.id,
+        folio: generatedFolio,
+        employeeId: emp.id,
+        employeeName: `${emp.firstName} ${emp.lastName}`,
+        employeeCategory: emp.category,
+        startDate,
+        endDate: computedResults.endDateStr,
+        totalDays: requestedDays,
+        type: requestType,
+        status: 'PENDIENTE',
+        notes: notes.trim() || "",
+        registeredBy: authorizedBy.trim() || 'Admin',
+        createdAt: new Date().toISOString()
+      };
+
+      // Trigger automatic PDF download
+      await downloadVacationPDF(createdRequest, emp);
 
       setSuccess('Solicitud registrada con éxito como PENDIENTE.');
       
@@ -634,13 +914,16 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
                   <tr key={req.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="p-3">
                       <div>
-                        <p className="font-extrabold text-gray-900">{req.employeeName}</p>
+                        <p className="font-extrabold text-gray-900">
+                          <span className="text-gray-500 font-mono text-[10px] mr-1">#{req.folio || Math.floor(100000 + (req.createdAt ? new Date(req.createdAt).getTime() % 900000 : Math.random() * 900000))}</span>
+                          {req.employeeName}
+                        </p>
                         <p className="text-[10px] text-gray-400">{req.employeeCategory}</p>
                       </div>
                     </td>
                     <td className="p-3">
                       <div className="flex flex-col">
-                        <span className="font-medium text-gray-700">{req.startDate} al {req.endDate}</span>
+                        <span className="font-medium text-gray-700">{formatDateToDDMMAA(req.startDate)} al {formatDateToDDMMAA(req.endDate)}</span>
                         <span className={`text-[10px] font-bold ${
                           req.type === 'disponibles' ? 'text-indigo-600' : 'text-emerald-600'
                         }`}>
@@ -649,7 +932,7 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
                       </div>
                     </td>
                     <td className="p-3">
-                      <span className="font-semibold text-gray-800">{calculateReturnDate(req.endDate)}</span>
+                      <span className="font-semibold text-gray-800">{formatDateToDDMMAA(calculateReturnDate(req.endDate))}</span>
                     </td>
                     <td className="p-3 text-center font-black text-gray-800">
                       {req.totalDays}
@@ -680,6 +963,17 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
                             </button>
                           </>
                         )}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const emp = employees.find(e => e.id === req.employeeId);
+                            downloadVacationPDF(req, emp);
+                          }}
+                          className="p-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors border border-indigo-200"
+                          title="Descargar PDF"
+                        >
+                          <FileText className="w-3.5 h-3.5" />
+                        </button>
                         <button
                           onClick={() => handleDeleteRequest(req.id)}
                           className="p-1.5 bg-gray-50 text-gray-500 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors border border-gray-200 hover:border-red-200"
@@ -736,13 +1030,16 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
                       <tr key={req.id} className="hover:bg-gray-50/50 transition-colors">
                         <td className="p-3">
                           <div>
-                            <p className="font-extrabold text-gray-900">{req.employeeName}</p>
+                            <p className="font-extrabold text-gray-900">
+                              <span className="text-gray-500 font-mono text-[10px] mr-1">#{req.folio || Math.floor(100000 + (req.createdAt ? new Date(req.createdAt).getTime() % 900000 : Math.random() * 900000))}</span>
+                              {req.employeeName}
+                            </p>
                             <p className="text-[10px] text-gray-400">{req.employeeCategory}</p>
                           </div>
                         </td>
                         <td className="p-3">
                           <div className="flex flex-col">
-                            <span className="font-medium text-gray-700">{req.startDate} al {req.endDate}</span>
+                            <span className="font-medium text-gray-700">{formatDateToDDMMAA(req.startDate)} al {formatDateToDDMMAA(req.endDate)}</span>
                             <span className={`text-[10px] font-bold ${
                               req.type === 'disponibles' ? 'text-indigo-600' : 'text-emerald-600'
                             }`}>
@@ -751,7 +1048,7 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
                           </div>
                         </td>
                         <td className="p-3">
-                          <span className="font-semibold text-gray-800">{calculateReturnDate(req.endDate)}</span>
+                          <span className="font-semibold text-gray-800">{formatDateToDDMMAA(calculateReturnDate(req.endDate))}</span>
                         </td>
                         <td className="p-3 text-center font-black text-gray-800">
                           {req.totalDays}
@@ -782,6 +1079,17 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
                                 </button>
                               </>
                             )}
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const emp = employees.find(e => e.id === req.employeeId);
+                                downloadVacationPDF(req, emp);
+                              }}
+                              className="p-1.5 bg-indigo-50 text-indigo-600 hover:bg-indigo-100 rounded-lg transition-colors border border-indigo-200"
+                              title="Descargar PDF"
+                            >
+                              <FileText className="w-3.5 h-3.5" />
+                            </button>
                             <button
                               onClick={() => handleDeleteRequest(req.id)}
                               className="p-1.5 bg-gray-50 text-gray-500 hover:bg-red-50 hover:text-red-600 rounded-lg transition-colors border border-gray-200 hover:border-red-200"

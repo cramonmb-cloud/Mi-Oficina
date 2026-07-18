@@ -33,8 +33,9 @@ export interface Employee {
   linkedExecutiveId?: string; // Para Supervisoras y Promotoras (ID del Ejecutivo)
   linkedSupervisorId?: string; // Para Promotoras (ID de la Supervisora)
   groupName?: string; // Para Promotoras (Nombre del Grupo)
-  supervisionName?: string; // Para Supervisoras (Nombre de la Supervisión)
   status?: 'ACTIVO' | 'INACTIVO' | 'BAJA';
+  vacationDaysEarnedAdjustment?: number | null;
+  vacationDaysUsedAdjustment?: number | null;
 }
 
 export interface Expense {
@@ -153,6 +154,7 @@ export interface VehicleEvent {
 
 export interface VacationRequest {
   id: string;
+  folio?: number;
   employeeId: string;
   employeeName: string;
   employeeCategory: string;

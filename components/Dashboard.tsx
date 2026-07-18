@@ -308,6 +308,8 @@ export const Dashboard: React.FC<DashboardProps> = ({
           setBirthdayImage(result.imageUrl);
           // Save to Database so everyone sees the same image
           await saveDailyBirthdayCard(person.id, result.imageUrl);
+        } else {
+          alert(`Error generando tarjeta: ${result.error || 'Ocurrió un error desconocido'}`);
         }
       }
     } catch (error) {

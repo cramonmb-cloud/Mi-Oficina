@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { Search, Settings } from 'lucide-react';
 import { Employee, VacationRequest } from '../types';
+import { updateEmployee } from '../services/dbService';
 
 interface VacationsBalancesTableProps {
   employees: Employee[];
@@ -14,12 +15,19 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
     const saved = localStorage.getItem('vacationDaysPerYear');
     return saved ? parseInt(saved, 10) : 12;
   });
+  const [accumulationRule, setAccumulationRule] = useState<'accumulate' | 'reset-on-anniversary'>(() => {
+    const saved = localStorage.getItem('vacationAccumulationRule');
+    return (saved as 'accumulate' | 'reset-on-anniversary') || 'accumulate';
+  });
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
   const [tempDaysValue, setTempDaysValue] = useState<string>(String(daysPerYear));
+  const [tempRuleValue, setTempRuleValue] = useState<'accumulate' | 'reset-on-anniversary'>(accumulationRule);
+  const [isAdjustMode, setIsAdjustMode] = useState(false);
+  const [pendingAdjustments, setPendingAdjustments] = useState<Record<string, { earned?: number | null, used?: number | null }>>({});
 
   // Keep state updated if changed elsewhere
   useEffect(() => {
-    const handleChanged = () => {
+    const handleDaysChanged = () => {
       const saved = localStorage.getItem('vacationDaysPerYear');
       if (saved) {
         const parsed = parseInt(saved, 10);
@@ -27,9 +35,19 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
         setTempDaysValue(String(parsed));
       }
     };
-    window.addEventListener('vacationDaysPerYearChanged', handleChanged);
+    const handleRuleChanged = () => {
+      const saved = localStorage.getItem('vacationAccumulationRule');
+      if (saved) {
+        const rule = saved as 'accumulate' | 'reset-on-anniversary';
+        setAccumulationRule(rule);
+        setTempRuleValue(rule);
+      }
+    };
+    window.addEventListener('vacationDaysPerYearChanged', handleDaysChanged);
+    window.addEventListener('vacationAccumulationRuleChanged', handleRuleChanged);
     return () => {
-      window.removeEventListener('vacationDaysPerYearChanged', handleChanged);
+      window.removeEventListener('vacationDaysPerYearChanged', handleDaysChanged);
+      window.removeEventListener('vacationAccumulationRuleChanged', handleRuleChanged);
     };
   }, []);
 
@@ -48,21 +66,74 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
       // Calculate completed years
       const yearsOfService = diffDays >= 0 ? Math.floor(diffDays / 365.25) : 0;
       
-      // 1 year complete = daysPerYear days automatically, 2 years = daysPerYear * 2 etc.
-      const totalEarned = yearsOfService >= 1 ? yearsOfService * daysPerYear : 0;
-      
       // Filter approved requests of type 'disponibles' (subtracted days)
       const empRequests = vacationRequests.filter(
         r => r.employeeId === emp.id && r.status === 'APROBADA' && r.type === 'disponibles'
       );
-      const used = empRequests.reduce((sum, r) => sum + r.totalDays, 0);
-      const balance = totalEarned - used;
+
+      let totalEarned = 0;
+      let used = 0;
+
+      if (accumulationRule === 'reset-on-anniversary') {
+        const hireYear = hire.getFullYear();
+        const hireMonth = hire.getMonth();
+        const hireDay = hire.getDate();
+
+        // Calculate current anniversary year range
+        const lastAnniversary = new Date(hireYear + yearsOfService, hireMonth, hireDay);
+        const nextAnniversary = new Date(hireYear + yearsOfService + 1, hireMonth, hireDay);
+
+        totalEarned = yearsOfService >= 1 ? daysPerYear : 0;
+
+        // Sum only requests starting within the current anniversary period
+        used = empRequests.reduce((sum, r) => {
+          const reqStart = new Date(r.startDate + 'T00:00:00');
+          if (reqStart >= lastAnniversary && reqStart < nextAnniversary) {
+            return sum + r.totalDays;
+          }
+          return sum;
+        }, 0);
+      } else {
+        // 1 year complete = daysPerYear days automatically, 2 years = daysPerYear * 2 etc. (Accumulative)
+        totalEarned = yearsOfService >= 1 ? yearsOfService * daysPerYear : 0;
+        used = empRequests.reduce((sum, r) => sum + r.totalDays, 0);
+      }
+
+      // Apply manual adjustments if any (pending in UI has highest precedence)
+      const pending = pendingAdjustments[emp.id];
+      let finalEarned = totalEarned;
+      let finalUsed = used;
+
+      if (pending) {
+        if (pending.earned !== undefined) {
+          finalEarned = pending.earned === null ? totalEarned : pending.earned;
+        } else if (emp.vacationDaysEarnedAdjustment !== undefined && emp.vacationDaysEarnedAdjustment !== null) {
+          finalEarned = emp.vacationDaysEarnedAdjustment;
+        }
+
+        if (pending.used !== undefined) {
+          finalUsed = pending.used === null ? used : pending.used;
+        } else if (emp.vacationDaysUsedAdjustment !== undefined && emp.vacationDaysUsedAdjustment !== null) {
+          finalUsed = emp.vacationDaysUsedAdjustment;
+        }
+      } else {
+        if (emp.vacationDaysEarnedAdjustment !== undefined && emp.vacationDaysEarnedAdjustment !== null) {
+          finalEarned = emp.vacationDaysEarnedAdjustment;
+        }
+        if (emp.vacationDaysUsedAdjustment !== undefined && emp.vacationDaysUsedAdjustment !== null) {
+          finalUsed = emp.vacationDaysUsedAdjustment;
+        }
+      }
+
+      const balance = finalEarned - finalUsed;
       
       return {
         yearsOfService,
-        totalEarned,
-        used,
+        totalEarned: finalEarned,
+        used: finalUsed,
         balance,
+        baseEarned: totalEarned,
+        baseUsed: used,
         text: `${yearsOfService} ${yearsOfService === 1 ? 'año' : 'años'} de servicio`
       };
     } catch (e) {
@@ -72,7 +143,7 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
 
   // Filtered list of active employees with vacation statistics
   const filteredBalances = useMemo(() => {
-    return employees
+    const list = employees
       .filter(e => e.status !== 'BAJA')
       .map(emp => {
         const stats = getEmployeeBalance(emp);
@@ -94,7 +165,14 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
 
         return matchesSearch && matchesCategory;
       });
-  }, [employees, vacationRequests, searchTerm, categoryFilter]);
+
+    // Sort alphabetically by first name and last name
+    return list.sort((a, b) => {
+      const nameA = `${a.emp.firstName || ''} ${a.emp.lastName || ''}`.toLowerCase().trim();
+      const nameB = `${b.emp.firstName || ''} ${b.emp.lastName || ''}`.toLowerCase().trim();
+      return nameA.localeCompare(nameB);
+    });
+  }, [employees, vacationRequests, searchTerm, categoryFilter, pendingAdjustments, accumulationRule]);
 
   // Unique categories for filtering
   const categories = useMemo(() => {
@@ -122,6 +200,48 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
     };
   }, [filteredBalances]);
 
+  const handleStartAdjustMode = () => {
+    const password = prompt("Introduce la contraseña para ajustar los días de vacaciones:");
+    if (password === "Lacrimosa_12") {
+      setPendingAdjustments({});
+      setIsAdjustMode(true);
+    } else if (password !== null) {
+      alert("Contraseña incorrecta");
+    }
+  };
+
+  const handleCancelAdjustments = () => {
+    setPendingAdjustments({});
+    setIsAdjustMode(false);
+  };
+
+  const handleSaveAdjustments = async () => {
+    try {
+      const keys = Object.keys(pendingAdjustments);
+      for (const empId of keys) {
+        const adjustment = pendingAdjustments[empId];
+        const updateData: Partial<Employee> = {};
+        if (adjustment.earned !== undefined) {
+          updateData.vacationDaysEarnedAdjustment = adjustment.earned;
+        }
+        if (adjustment.used !== undefined) {
+          updateData.vacationDaysUsedAdjustment = adjustment.used;
+        }
+
+        // Only call updateEmployee if there is an actual adjustment to save
+        if (Object.keys(updateData).length > 0) {
+          await updateEmployee(empId, updateData);
+        }
+      }
+      alert("Ajustes guardados exitosamente.");
+      setIsAdjustMode(false);
+      setPendingAdjustments({});
+    } catch (e) {
+      console.error("Error updating manual vacation adjustments:", e);
+      alert("Hubo un error al guardar los ajustes.");
+    }
+  };
+
   return (
     <div className="space-y-6">
       
@@ -130,16 +250,47 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
         <div>
           <h3 className="text-xl font-bold text-gray-800">Saldos de Vacaciones</h3>
         </div>
-        <button
-          onClick={() => {
-            setTempDaysValue(String(daysPerYear));
-            setIsConfigModalOpen(true);
-          }}
-          className="flex items-center justify-center gap-1.5 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold text-xs rounded-xl transition-all border border-indigo-100 shadow-sm self-start sm:self-auto"
-        >
-          <Settings className="w-4 h-4" />
-          Configurar
-        </button>
+        <div className="flex gap-2">
+          {isAdjustMode ? (
+            <>
+              <button
+                type="button"
+                onClick={handleCancelAdjustments}
+                className="flex items-center justify-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-extrabold text-xs rounded-xl transition-all border border-gray-200 shadow-sm"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleSaveAdjustments}
+                className="flex items-center justify-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-extrabold text-xs rounded-xl transition-all shadow-sm"
+              >
+                Guardar Ajustes
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={handleStartAdjustMode}
+                className="flex items-center justify-center gap-1.5 px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 font-extrabold text-xs rounded-xl transition-all border border-amber-100 shadow-sm"
+              >
+                Ajustar
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setTempDaysValue(String(daysPerYear));
+                  setIsConfigModalOpen(true);
+                }}
+                className="flex items-center justify-center gap-1.5 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold text-xs rounded-xl transition-all border border-indigo-100 shadow-sm"
+              >
+                <Settings className="w-4 h-4" />
+                Configurar
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Control Tools */}
@@ -188,7 +339,7 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
             </thead>
             <tbody className="divide-y divide-gray-100 text-gray-700 font-medium">
               {filteredBalances.length > 0 ? (
-                filteredBalances.map(({ emp, yearsOfService, totalEarned, used, balance }) => {
+                filteredBalances.map(({ emp, yearsOfService, totalEarned, used, balance, baseEarned, baseUsed }) => {
                   const hasOneYear = yearsOfService >= 1;
                   return (
                     <tr key={emp.id} className="hover:bg-gray-50/40 transition-colors">
@@ -215,16 +366,78 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
                         </div>
                       </td>
                       <td className="p-4 text-center bg-indigo-50/10 font-bold text-gray-900">
-                        {totalEarned} días
+                        {isAdjustMode ? (
+                          <input
+                            type="number"
+                            min="0"
+                            max="365"
+                            placeholder={String(baseEarned)}
+                            className="w-16 px-1.5 py-1 border border-gray-200 rounded text-center text-xs font-bold focus:ring-1 focus:ring-indigo-500 outline-none"
+                            value={
+                              pendingAdjustments[emp.id]?.earned === null 
+                                ? '' 
+                                : pendingAdjustments[emp.id]?.earned !== undefined 
+                                  ? String(pendingAdjustments[emp.id]?.earned) 
+                                  : emp.vacationDaysEarnedAdjustment !== undefined && emp.vacationDaysEarnedAdjustment !== null 
+                                    ? String(emp.vacationDaysEarnedAdjustment) 
+                                    : ''
+                            }
+                            onChange={(e) => {
+                              const val = e.target.value === '' || isNaN(parseInt(e.target.value, 10)) ? null : parseInt(e.target.value, 10);
+                              setPendingAdjustments(prev => ({
+                                ...prev,
+                                [emp.id]: {
+                                  ...prev[emp.id],
+                                  earned: val
+                                }
+                              }));
+                            }}
+                          />
+                        ) : (
+                          `${totalEarned} días`
+                        )}
                       </td>
                       <td className="p-4 text-center bg-red-50/10 font-bold text-red-600">
-                        {used} días
+                        {isAdjustMode ? (
+                          <input
+                            type="number"
+                            min="0"
+                            max="365"
+                            placeholder={String(baseUsed)}
+                            className="w-16 px-1.5 py-1 border border-gray-200 rounded text-center text-xs font-bold focus:ring-1 focus:ring-indigo-500 outline-none"
+                            value={
+                              pendingAdjustments[emp.id]?.used === null 
+                                ? '' 
+                                : pendingAdjustments[emp.id]?.used !== undefined 
+                                  ? String(pendingAdjustments[emp.id]?.used) 
+                                  : emp.vacationDaysUsedAdjustment !== undefined && emp.vacationDaysUsedAdjustment !== null 
+                                    ? String(emp.vacationDaysUsedAdjustment) 
+                                    : ''
+                            }
+                            onChange={(e) => {
+                              const val = e.target.value === '' || isNaN(parseInt(e.target.value, 10)) ? null : parseInt(e.target.value, 10);
+                              setPendingAdjustments(prev => ({
+                                ...prev,
+                                [emp.id]: {
+                                  ...prev[emp.id],
+                                  used: val
+                                }
+                              }));
+                            }}
+                          />
+                        ) : (
+                          `${used} días`
+                        )}
                       </td>
                       <td className="p-4 text-center bg-green-50/10 font-black">
                         <span className={`inline-block px-3 py-1 rounded-lg border ${
-                          balance > 0 
-                            ? 'bg-green-50 border-green-200 text-green-700' 
-                            : 'bg-gray-50 border-gray-200 text-gray-500'
+                          (() => {
+                            if (balance <= 0) return 'bg-gray-50 border-gray-200 text-gray-500';
+                            if (balance >= 1 && balance <= 2) return 'bg-orange-50 border-orange-200 text-orange-700';
+                            if (balance >= 3 && balance <= 5) return 'bg-amber-50 border-amber-200 text-amber-700';
+                            if (balance >= 6 && balance <= 9) return 'bg-blue-50 border-blue-200 text-blue-700';
+                            return 'bg-green-50 border-green-200 text-green-700'; // >= 10
+                          })()
                         }`}>
                           {balance} días
                         </span>
@@ -265,11 +478,26 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
                 />
               </div>
 
+              <div>
+                <label className="block text-[11px] font-extrabold text-gray-400 uppercase tracking-wider mb-2">
+                  Regla de reinicio / acumulación
+                </label>
+                <select
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs bg-gray-50 focus:bg-white focus:ring-1 focus:ring-indigo-500 outline-none transition-all font-bold"
+                  value={tempRuleValue}
+                  onChange={(e) => setTempRuleValue(e.target.value as 'accumulate' | 'reset-on-anniversary')}
+                >
+                  <option value="accumulate">Acumulativo (Histórico)</option>
+                  <option value="reset-on-anniversary">Reinicio Anual (No Acumulable)</option>
+                </select>
+              </div>
+
               <div className="flex gap-2 justify-end pt-2">
                 <button
                   type="button"
                   onClick={() => {
                     setTempDaysValue(String(daysPerYear));
+                    setTempRuleValue(accumulationRule);
                     setIsConfigModalOpen(false);
                   }}
                   className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-extrabold text-xs rounded-xl transition-all"
@@ -282,10 +510,13 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
                     const parsed = parseInt(tempDaysValue, 10);
                     if (!isNaN(parsed) && parsed > 0) {
                       localStorage.setItem('vacationDaysPerYear', String(parsed));
+                      localStorage.setItem('vacationAccumulationRule', tempRuleValue);
                       setDaysPerYear(parsed);
+                      setAccumulationRule(tempRuleValue);
                       setIsConfigModalOpen(false);
-                      // Trigger custom event to notify other components in same session
+                      // Trigger custom events to notify other components
                       window.dispatchEvent(new Event('vacationDaysPerYearChanged'));
+                      window.dispatchEvent(new Event('vacationAccumulationRuleChanged'));
                     }
                   }}
                   className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-sm transition-all"

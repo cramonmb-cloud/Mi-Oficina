@@ -3,6 +3,8 @@ import { getFirestore } from "firebase/firestore";
 import { getAnalytics } from "firebase/analytics";
 import { getStorage } from "firebase/storage";
 
+import firebaseAppletConfig from "./firebase-applet-config.json";
+
 // Helper to check and retrieve the configuration
 export const getFirebaseConfig = () => {
   // 1. Try to load from Vite environment variables (Vercel/Production setup)
@@ -21,7 +23,20 @@ export const getFirebaseConfig = () => {
     };
   }
 
-  // 2. Try to load from localStorage (Dynamic local setup)
+  // 2. Try to load from static JSON configuration
+  if (firebaseAppletConfig && firebaseAppletConfig.apiKey) {
+    return {
+      apiKey: firebaseAppletConfig.apiKey,
+      authDomain: firebaseAppletConfig.authDomain,
+      projectId: firebaseAppletConfig.projectId,
+      storageBucket: firebaseAppletConfig.storageBucket,
+      messagingSenderId: firebaseAppletConfig.messagingSenderId,
+      appId: firebaseAppletConfig.appId,
+      measurementId: firebaseAppletConfig.measurementId || "",
+    };
+  }
+
+  // 3. Try to load from localStorage (Dynamic local setup)
   try {
     const saved = localStorage.getItem('firebase_config');
     if (saved) {
