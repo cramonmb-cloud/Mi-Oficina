@@ -1163,7 +1163,6 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
                   </div>
                   <div>
                     <h4 className="font-bold text-gray-900 text-sm">{selectedEmpDetails.firstName} {selectedEmpDetails.lastName}</h4>
-                    <p className="text-[10px] text-gray-400 font-medium">{selectedEmpDetails.position || 'Sin Puesto'} • {selectedEmpDetails.plaza || 'Sin Plaza'}</p>
                   </div>
                 </div>
 
