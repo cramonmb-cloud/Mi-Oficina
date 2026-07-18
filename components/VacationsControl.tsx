@@ -79,6 +79,8 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [selectedEmpDetails, setSelectedEmpDetails] = useState<Employee | null>(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
   // Form State
   const [selectedEmpId, setSelectedEmpId] = useState('');
@@ -914,9 +916,21 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
                   <tr key={req.id} className="hover:bg-gray-50/50 transition-colors">
                     <td className="p-3">
                       <div>
-                        <p className="font-extrabold text-gray-900">
+                        <p className="font-extrabold text-gray-900 flex items-center">
                           <span className="text-gray-500 font-mono text-[10px] mr-1">#{req.folio || Math.floor(100000 + (req.createdAt ? new Date(req.createdAt).getTime() % 900000 : Math.random() * 900000))}</span>
-                          {req.employeeName}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const emp = employees.find(e => e.id === req.employeeId);
+                              if (emp) {
+                                setSelectedEmpDetails(emp);
+                                setIsDetailsModalOpen(true);
+                              }
+                            }}
+                            className="hover:text-indigo-600 hover:underline transition-all focus:outline-none text-left"
+                          >
+                            {req.employeeName}
+                          </button>
                         </p>
                         <p className="text-[10px] text-gray-400">{req.employeeCategory}</p>
                       </div>
@@ -1030,9 +1044,21 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
                       <tr key={req.id} className="hover:bg-gray-50/50 transition-colors">
                         <td className="p-3">
                           <div>
-                            <p className="font-extrabold text-gray-900">
+                            <p className="font-extrabold text-gray-900 flex items-center">
                               <span className="text-gray-500 font-mono text-[10px] mr-1">#{req.folio || Math.floor(100000 + (req.createdAt ? new Date(req.createdAt).getTime() % 900000 : Math.random() * 900000))}</span>
-                              {req.employeeName}
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const emp = employees.find(e => e.id === req.employeeId);
+                                  if (emp) {
+                                    setSelectedEmpDetails(emp);
+                                    setIsDetailsModalOpen(true);
+                                  }
+                                }}
+                                className="hover:text-indigo-600 hover:underline transition-all focus:outline-none text-left"
+                              >
+                                {req.employeeName}
+                              </button>
                             </p>
                             <p className="text-[10px] text-gray-400">{req.employeeCategory}</p>
                           </div>
@@ -1112,6 +1138,69 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
           </div>
         )}
       </div>
+
+      {/* Employee Quick Details Modal */}
+      {isDetailsModalOpen && selectedEmpDetails && (() => {
+        const stats = getEmployeeBalance(selectedEmpDetails);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-fade-in">
+            <div className="bg-white rounded-2xl p-6 max-w-sm w-full border border-gray-100 shadow-xl relative animate-in fade-in zoom-in-95 duration-150">
+              <button
+                type="button"
+                onClick={() => {
+                  setIsDetailsModalOpen(false);
+                  setSelectedEmpDetails(null);
+                }}
+                className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="space-y-4 pt-2">
+                <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
+                  <div className="w-10 h-10 rounded-full bg-indigo-50 flex items-center justify-center text-indigo-600 font-black text-sm">
+                    {selectedEmpDetails.firstName?.[0] || ''}{selectedEmpDetails.lastName?.[0] || ''}
+                  </div>
+                  <div>
+                    <h4 className="font-bold text-gray-900 text-sm">{selectedEmpDetails.firstName} {selectedEmpDetails.lastName}</h4>
+                    <p className="text-[10px] text-gray-400 font-medium">{selectedEmpDetails.position || 'Sin Puesto'} • {selectedEmpDetails.plaza || 'Sin Plaza'}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-3 bg-gray-50 rounded-xl border border-gray-100/50">
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Antigüedad</p>
+                    <p className="text-xs font-black text-gray-800 mt-1">{stats.text}</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-xl border border-gray-100/50">
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">F. Ingreso</p>
+                    <p className="text-xs font-black text-gray-800 mt-1">{selectedEmpDetails.hireDate || 'N/R'}</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-xl border border-gray-100/50">
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Días Usados</p>
+                    <p className="text-xs font-black text-red-600 mt-1">{stats.used} días</p>
+                  </div>
+                  <div className="p-3 bg-gray-50 rounded-xl border border-gray-100/50">
+                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Días Disponibles</p>
+                    <p className="text-xs font-black text-emerald-600 mt-1">{stats.balance} días</p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsDetailsModalOpen(false);
+                    setSelectedEmpDetails(null);
+                  }}
+                  className="w-full mt-2 py-2 bg-gray-900 hover:bg-gray-800 text-white text-xs font-bold rounded-lg transition-colors shadow-sm"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* New Request Modal */}
       {isModalOpen && (
