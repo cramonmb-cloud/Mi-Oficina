@@ -249,7 +249,7 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
   const handleDirectDownloadQr = async (employee: Employee, e?: React.MouseEvent) => {
     e?.stopPropagation();
     try {
-      const verificationUrl = `${window.location.origin}${window.location.pathname}?credencial=${employee.id}`;
+      const verificationUrl = `${window.location.origin}/?credencial=${employee.id}`;
       const qrDataUrl = await QRCode.toDataURL(verificationUrl, {
         width: 1000,
         margin: 2,

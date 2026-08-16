@@ -33,8 +33,8 @@ export const VirtualCredentialModal: React.FC<VirtualCredentialModalProps> = ({
   const [copied, setCopied] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
-  // Generate public verification link
-  const verificationUrl = `${window.location.origin}${window.location.pathname}?credencial=${employee.id}`;
+  // Generate public verification link (Root URL to ensure universal compatibility)
+  const verificationUrl = `${window.location.origin}/?credencial=${employee.id}`;
 
   useEffect(() => {
     // Generate high resolution QR code
