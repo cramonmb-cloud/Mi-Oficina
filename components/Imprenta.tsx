@@ -18,18 +18,18 @@ export const Imprenta: React.FC<ImprentaProps> = ({ imprentaUrl, onOpenSettings 
   if (!imprentaUrl) {
     return (
       <div className="flex flex-col items-center justify-center h-full p-8 text-center animate-fade-in my-auto min-h-[400px]">
-        <div className="bg-indigo-100 p-6 rounded-full mb-6">
-          <Printer className="w-16 h-16 text-indigo-500 animate-pulse" />
+        <div className="bg-slate-100 p-5 rounded-2xl mb-4 border border-slate-200">
+          <Printer className="w-10 h-10 text-slate-700" />
         </div>
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">Configurar Imprenta</h2>
-        <p className="text-gray-500 max-w-md mb-6">
-          Para ver el contenido de tu Imprenta, ingresa un enlace válido (URL) en el panel de Ajustes de la Oficina.
+        <h2 className="text-base font-bold text-slate-900 mb-1">Configurar Imprenta</h2>
+        <p className="text-xs text-slate-500 max-w-sm mb-6">
+          Para ver el contenido de la Imprenta, ingresa un enlace válido (URL) en el panel de Ajustes del sistema.
         </p>
         <button 
           onClick={onOpenSettings}
-          className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-medium flex items-center shadow-lg hover:shadow-indigo-500/30 transition-all font-bold"
+          className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-lg font-semibold text-xs flex items-center shadow-xs transition-colors"
         >
-          <Settings className="w-5 h-5 mr-2" /> Abrir Ajustes de Oficina
+          <Settings className="w-4 h-4 mr-1.5" /> Abrir Ajustes de Oficina
         </button>
       </div>
     );

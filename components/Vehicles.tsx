@@ -469,57 +469,57 @@ export const Vehicles: React.FC<VehiclesProps> = ({
       </div>
 
       {/* METRICS PANEL (3 Columns, clean, no background fluff, modern flat cards) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="bg-gray-50 border border-gray-200/60 rounded-xl p-4 flex items-center justify-between">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+        <div className="bg-white border border-slate-200/80 shadow-xs rounded-xl p-4 flex items-center justify-between">
           <div>
-            <span className="text-[10px] text-gray-400 font-bold block uppercase tracking-wider">Flota Total</span>
-            <span className="text-xl font-bold text-gray-800">{metrics.total} Vehículos</span>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">Flota Total</span>
+            <span className="text-xl font-bold font-mono text-slate-900 mt-0.5 block">{metrics.total} <span className="text-xs font-normal text-slate-500 font-sans">Vehículos</span></span>
           </div>
-          <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-1 rounded-md">General</span>
+          <span className="text-[10px] font-bold text-slate-700 bg-slate-100 px-2 py-0.5 rounded-md border border-slate-200">General</span>
         </div>
 
-        <div className="bg-gray-50 border border-gray-200/60 rounded-xl p-4 flex items-center justify-between">
+        <div className="bg-white border border-slate-200/80 shadow-xs rounded-xl p-4 flex items-center justify-between">
           <div>
-            <span className="text-[10px] text-gray-400 font-bold block uppercase tracking-wider">En Operación Activa</span>
-            <span className="text-xl font-bold text-gray-800">{metrics.assigned} en Uso</span>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">En Operación Activa</span>
+            <span className="text-xl font-bold font-mono text-slate-900 mt-0.5 block">{metrics.assigned} <span className="text-xs font-normal text-slate-500 font-sans">en Uso</span></span>
           </div>
-          <span className="text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-md">Asignados</span>
+          <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">Asignados</span>
         </div>
 
-        <div className="bg-gray-50 border border-gray-200/60 rounded-xl p-4 flex items-center justify-between">
+        <div className="bg-white border border-slate-200/80 shadow-xs rounded-xl p-4 flex items-center justify-between">
           <div>
-            <span className="text-[10px] text-gray-400 font-bold block uppercase tracking-wider">En Mantenimiento</span>
-            <span className="text-xl font-bold text-gray-800">{metrics.workshop} en Taller</span>
+            <span className="text-[10px] text-slate-400 font-bold block uppercase tracking-wider">En Mantenimiento</span>
+            <span className="text-xl font-bold font-mono text-slate-900 mt-0.5 block">{metrics.workshop} <span className="text-xs font-normal text-slate-500 font-sans">en Taller</span></span>
           </div>
-          <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-1 rounded-md">Taller</span>
+          <span className="text-[10px] font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">Taller</span>
         </div>
       </div>
 
       {/* SEARCH & FILTERS BAR */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-2 border border-gray-200 rounded-xl">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-2 border border-slate-200/80 shadow-xs rounded-xl">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+          <Search className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
           <input 
             type="text" 
             placeholder="Buscar por marca, modelo, placas, conductor..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-transparent pl-9 pr-4 py-2 text-xs font-medium text-gray-800 placeholder-gray-400 outline-none"
+            className="w-full bg-transparent pl-9 pr-4 py-1.5 text-xs font-medium text-slate-800 placeholder-slate-400 outline-none"
           />
         </div>
 
         <div className="flex items-center gap-1.5 border-t sm:border-t-0 pt-2 sm:pt-0 shrink-0">
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider px-2 flex items-center gap-1">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider px-2 flex items-center gap-1">
             <SlidersHorizontal className="w-3.5 h-3.5" /> Estado:
           </span>
           {['Todos', 'Activo', 'En Taller', 'Inactivo'].map(st => (
             <button
               key={st}
               onClick={() => setStatusFilter(st)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
                 statusFilter === st 
-                  ? 'bg-gray-100 text-gray-900 border border-gray-200' 
-                  : 'text-gray-500 hover:bg-gray-50 border border-transparent'
+                  ? 'bg-slate-900 text-white shadow-xs' 
+                  : 'text-slate-600 hover:bg-slate-100 border border-transparent'
               }`}
             >
               {st}
@@ -529,17 +529,17 @@ export const Vehicles: React.FC<VehiclesProps> = ({
       </div>
 
       {/* CORE CONTENT LAYOUT: COMPACT LISTING TABLE */}
-      <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm">
+      <div className="bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-xs">
           {isLoading ? (
             <div className="p-12 text-center">
-              <Loader2 className="w-8 h-8 text-gray-800 animate-spin mx-auto mb-3" />
-              <p className="text-xs text-gray-500 font-medium">Sincronizando flota corporativa...</p>
+              <Loader2 className="w-6 h-6 text-slate-800 animate-spin mx-auto mb-2" />
+              <p className="text-xs text-slate-500 font-medium">Sincronizando flota vehicular...</p>
             </div>
           ) : filteredVehicles.length === 0 ? (
             <div className="p-16 text-center">
-              <Car className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-              <h4 className="text-sm font-bold text-gray-700">No se encontraron autos</h4>
-              <p className="text-xs text-gray-400 max-w-sm mx-auto mt-1">
+              <Car className="w-10 h-10 text-slate-300 mx-auto mb-2" />
+              <h4 className="text-xs font-bold text-slate-700">No se encontraron vehículos</h4>
+              <p className="text-[11px] text-slate-400 max-w-sm mx-auto mt-1">
                 Ajusta los filtros de búsqueda o registra un nuevo vehículo oficial.
               </p>
             </div>
@@ -547,7 +547,7 @@ export const Vehicles: React.FC<VehiclesProps> = ({
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-gray-50/75 border-b border-gray-200 text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                  <tr className="bg-slate-50 border-b border-slate-200 text-[10px] text-slate-500 font-bold uppercase tracking-wider">
                     <th className="py-3 px-4">Automóvil</th>
                     <th className="py-3 px-4">Placas</th>
                     <th className="py-3 px-4">Conductor Asignado</th>
@@ -556,7 +556,7 @@ export const Vehicles: React.FC<VehiclesProps> = ({
                     <th className="py-3 px-4 text-right">Detalles</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-150">
+                <tbody className="divide-y divide-slate-100 text-xs">
                   {filteredVehicles.map(v => {
                     const driver = employees.find(e => e.id === v.currentEmployeeId);
                     const isSelected = selectedVehicle?.id === v.id;
@@ -565,19 +565,19 @@ export const Vehicles: React.FC<VehiclesProps> = ({
                       <tr 
                         key={v.id}
                         onClick={() => setSelectedVehicle(isSelected ? null : v)}
-                        className={`hover:bg-gray-50/60 transition-colors cursor-pointer text-xs ${
-                          isSelected ? 'bg-indigo-50/20 font-medium' : ''
+                        className={`hover:bg-slate-50 transition-colors cursor-pointer ${
+                          isSelected ? 'bg-slate-100/80 font-medium' : ''
                         }`}
                       >
                         {/* Car detail */}
                         <td className="py-3 px-4">
-                          <div className="font-bold text-gray-800">{v.brand} {v.model}</div>
-                          <div className="text-[10px] text-gray-400 font-medium mt-0.5">Modelo {v.year}</div>
+                          <div className="font-semibold text-slate-900">{v.brand} {v.model}</div>
+                          <div className="text-[10px] text-slate-400 font-mono mt-0.5">Modelo {v.year}</div>
                         </td>
 
                         {/* Plates */}
-                        <td className="py-3 px-4 font-mono font-bold text-gray-700">
-                          <span className="bg-gray-100 px-2 py-0.5 rounded border border-gray-200">
+                        <td className="py-3 px-4 font-mono font-bold text-slate-800">
+                          <span className="bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                             {v.plates}
                           </span>
                         </td>
@@ -586,10 +586,10 @@ export const Vehicles: React.FC<VehiclesProps> = ({
                         <td className="py-3 px-4">
                           {driver ? (
                             <div className="flex items-center gap-1.5">
-                              <User className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                              <User className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                               <div>
-                                <span className="font-semibold text-gray-700">{driver.firstName} {driver.lastName}</span>
-                                <span className="text-[9px] text-gray-400 block">{driver.category}</span>
+                                <span className="font-medium text-slate-800">{driver.firstName} {driver.lastName}</span>
+                                <span className="text-[9px] text-slate-400 block">{driver.category}</span>
                               </div>
                             </div>
                           ) : (
@@ -607,10 +607,10 @@ export const Vehicles: React.FC<VehiclesProps> = ({
                               return (
                                 <span 
                                   key={yr}
-                                  className={`text-[9px] font-bold px-1 py-0.2 rounded-md ${
+                                  className={`text-[9px] font-bold px-1.5 py-0.2 rounded-md ${
                                     paid 
-                                      ? 'bg-green-50 text-green-700 border border-green-150' 
-                                      : 'bg-rose-50 text-rose-700 border border-rose-100'
+                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                                      : 'bg-rose-50 text-rose-700 border border-rose-200'
                                   }`}
                                   title={`Refrendo ${yr}: ${paid ? 'Pagado' : 'Pendiente'}`}
                                 >
@@ -623,12 +623,12 @@ export const Vehicles: React.FC<VehiclesProps> = ({
 
                         {/* Status */}
                         <td className="py-3 px-4">
-                          <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          <span className={`inline-flex px-2 py-0.5 rounded-md text-[9px] font-bold uppercase border ${
                             v.status === 'Activo' 
-                              ? 'bg-green-50 text-green-700' 
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200' 
                               : v.status === 'En Taller' 
-                              ? 'bg-amber-50 text-amber-700' 
-                              : 'bg-gray-100 text-gray-700'
+                              ? 'bg-amber-50 text-amber-700 border-amber-200' 
+                              : 'bg-slate-100 text-slate-700 border-slate-200'
                           }`}>
                             {v.status}
                           </span>
@@ -636,22 +636,22 @@ export const Vehicles: React.FC<VehiclesProps> = ({
 
                         {/* Row Action Buttons */}
                         <td className="py-3 px-4 text-right" onClick={(e) => e.stopPropagation()}>
-                          <div className="flex justify-end gap-1.5">
+                          <div className="flex justify-end gap-1">
                             <button 
                               onClick={() => handleStartEdit(v)}
-                              className="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-gray-100 rounded-lg transition-colors"
+                              className="p-1 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors"
                               title="Editar Vehículo"
                             >
                               <Pencil className="w-3.5 h-3.5" />
                             </button>
                             <button 
                               onClick={() => setSelectedVehicle(isSelected ? null : v)}
-                              className={`p-1.5 rounded-lg transition-colors ${
-                                isSelected ? 'bg-indigo-100 text-indigo-700' : 'text-gray-400 hover:bg-gray-100'
+                              className={`p-1 rounded-md transition-colors ${
+                                isSelected ? 'bg-slate-200 text-slate-900' : 'text-slate-400 hover:bg-slate-100'
                               }`}
                               title="Ver Detalles"
                             >
-                              <ChevronRight className="w-4 h-4" />
+                              <ChevronRight className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </td>

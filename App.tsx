@@ -40,6 +40,16 @@ import {
   MessageSquare
 } from 'lucide-react';
 import { motion } from 'motion/react';
+import { 
+  Employee, 
+  Expense, 
+  Task, 
+  Fallo, 
+  Plaza, 
+  Vehicle, 
+  VehicleAssignment, 
+  VehicleEvent 
+} from './types';
 
 import { Dashboard } from './components/Dashboard';
 import { Personnel } from './components/Personnel';
@@ -79,7 +89,7 @@ import {
 import { validateApiKey } from './services/geminiService';
 import { hasConfig } from './firebase';
 import { NewInstallation } from './components/NewInstallation';
-
+import { PublicCredentialView } from './components/PublicCredentialView';
 
 function App() {
   // Auth State - Initialize from LocalStorage to persist session
@@ -130,10 +140,33 @@ function App() {
   // Connection Status State
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   
+  // Public Credential Route State (when QR is scanned)
+  const [publicCredentialId, setPublicCredentialId] = useState<string | null>(() => {
+    try {
+      const searchParams = new URLSearchParams(window.location.search);
+      const credParam = searchParams.get('credencial');
+      if (credParam) return credParam;
+
+      const path = window.location.pathname;
+      if (path.startsWith('/credencial/')) {
+        return path.replace('/credencial/', '');
+      }
+      const hash = window.location.hash;
+      if (hash.includes('credencial/')) {
+        const parts = hash.split('credencial/');
+        return parts[1] ? parts[1].split('?')[0] : null;
+      }
+    } catch {
+      // Fallback
+    }
+    return null;
+  });
+
   // Settings State
   const [mascotaUrl, setMascotaUrl] = useState('');
   const [mascotaName, setMascotaName] = useState('Mascota');
   const [companyName, setCompanyName] = useState('');
+  const [companyLogoUrl, setCompanyLogoUrl] = useState('');
   const [imprentaUrl, setImprentaUrl] = useState('');
   const [multiOfficeEnabled, setMultiOfficeEnabled] = useState(false);
   
@@ -310,6 +343,7 @@ function App() {
       try {
         const settingsData = await getAppSettings();
         setCompanyName(settingsData.companyName || '');
+        setCompanyLogoUrl(settingsData.companyLogoUrl || '');
         setMascotaName(settingsData.mascotaName || 'Mascota');
         setMascotaUrl(settingsData.mascotaUrl || '');
         setGoogleApiKey(settingsData.googleApiKey || '');
@@ -412,6 +446,7 @@ function App() {
     // Settings
     unsubscribers.push(subscribeToAppSettings((settings) => {
       setCompanyName(settings.companyName);
+      setCompanyLogoUrl(settings.companyLogoUrl || '');
       setMascotaName(settings.mascotaName);
       setMascotaUrl(settings.mascotaUrl);
       setGoogleApiKey(settings.googleApiKey);
@@ -600,6 +635,18 @@ function App() {
     );
   }
 
+  if (publicCredentialId) {
+    return (
+      <PublicCredentialView 
+        employeeId={publicCredentialId}
+        onGoToApp={() => {
+          window.history.replaceState({}, '', window.location.pathname);
+          setPublicCredentialId(null);
+        }}
+      />
+    );
+  }
+
   if (!currentUser) {
     return <Login 
       onLogin={handleLogin} 
@@ -682,7 +729,7 @@ function App() {
 
     switch (activeTab) {
       case 'tablero': return <Dashboard currentUser={currentUser} employees={employees} expenses={dashboardExpenses} tasks={tasks} mascotaUrl={mascotaUrl} mascotaName={mascotaName} companyName={companyName} birthdayPrompt={birthdayPrompt} birthdayVideoPrompt={birthdayVideoPrompt} birthdayWhatsAppTemplate={birthdayWhatsAppTemplate} selectedBdayEmployeeId={selectedBdayEmployeeId} setSelectedBdayEmployeeId={setSelectedBdayEmployeeId} />;
-      case 'personal': return <Personnel employees={employees} plazas={plazas} isLoading={!hasLoadedEmployees} currentUser={currentUser} />;
+      case 'personal': return <Personnel employees={employees} plazas={plazas} isLoading={!hasLoadedEmployees} currentUser={currentUser} companyName={companyName} companyLogoUrl={companyLogoUrl} />;
       case 'autos': return <Vehicles employees={employees} vehicles={vehicles} assignments={vehicleAssignments} events={vehicleEvents} isLoading={!hasLoadedVehicles} companyName={companyName} />;
       case 'gastos': return <Expenses expenses={expenses} employees={employees} isLoading={!hasLoadedExpenses} loadAll={loadAllExpenses} isSyncing={isSyncingExpenses} onLoadAll={() => { setLoadAllExpenses(true); setIsSyncingExpenses(true); }} multiOfficeEnabled={multiOfficeEnabled} currentUser={currentUser} />;
       case 'tareas': return <Tasks tasks={tasks} employees={employees} isLoading={!hasLoadedTasks} />;
@@ -694,6 +741,7 @@ function App() {
         return (
           <SettingsSection
             companyName={companyName}
+            companyLogoUrl={companyLogoUrl}
             mascotaName={mascotaName}
             mascotaUrl={mascotaUrl}
             imprentaUrl={imprentaUrl}
@@ -713,78 +761,96 @@ function App() {
     }
   };
 
+  // Dynamic Tab Labels for Header Breadcrumb
+  const currentTabLabel = useMemo(() => {
+    const item = navItems.find(i => i.id === activeTab);
+    return item ? item.label : 'Panel';
+  }, [activeTab, navItems]);
+
   return (
-    <div className="flex h-screen h-[100dvh] bg-gray-50 overflow-hidden relative">
+    <div className="flex h-screen h-[100dvh] bg-slate-50 text-slate-900 overflow-hidden relative">
       
       {/* Mobile Sidebar Overlay */}
       {sidebarOpen && (
-        <div className="fixed inset-0 bg-black/50 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />
+        <div 
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 lg:hidden transition-opacity" 
+          onClick={() => setSidebarOpen(false)} 
+        />
       )}
 
-      {/* Sidebar */}
+      {/* Enterprise Sidebar */}
       <aside className={`
-        fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-xl transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0
-        ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+        fixed inset-y-0 left-0 z-50 w-64 bg-white border-r border-slate-200 flex flex-col justify-between
+        transform transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0
+        ${sidebarOpen ? 'translate-x-0 shadow-2xl lg:shadow-none' : '-translate-x-full'}
       `}>
-        <div className="flex items-center justify-between p-6 border-b border-gray-100">
-          <h1 className="text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600 leading-tight">
-            Mi Oficina<br/>
-            <span className="text-base text-gray-600 font-medium">{companyName}</span>
-          </h1>
-          <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-gray-500 hover:text-gray-800">
-            <X className="w-6 h-6" />
-          </button>
-        </div>
-        
-        <nav className="p-4 space-y-2 relative">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => {
-                  handleTabChange(item.id);
-                  setSidebarOpen(false);
-                }}
-                className={`relative flex items-center w-full px-4 py-3 rounded-xl transition-all duration-300 group z-10 ${
-                  isActive 
-                    ? 'text-indigo-700 font-bold shadow-[0_4px_20px_rgba(99,102,241,0.1)]' 
-                    : 'text-gray-600 hover:bg-gray-50/50 hover:text-gray-900'
-                }`}
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="sidebarActivePill"
-                    className="absolute inset-0 -z-10 bg-gradient-to-r from-indigo-500/10 via-indigo-500/5 to-transparent rounded-xl border-l-[3px] border-indigo-600"
-                    style={{
-                      boxShadow: 'inset 1px 1px 2px rgba(255,255,255,0.8), 0 4px 12px rgba(99,102,241,0.04)',
-                    }}
-                    transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                  />
-                )}
-                <Icon className={`w-5 h-5 mr-3 transition-colors duration-300 ${isActive ? 'text-indigo-600' : 'text-gray-400 group-hover:text-gray-600'}`} />
-                {item.label}
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* User Menu Area */}
-        <div className="absolute bottom-0 w-full p-6 border-t border-gray-100" ref={userMenuRef}>
+        {/* Brand Header */}
+        <div>
+          <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-xl bg-slate-900 flex items-center justify-center text-white shadow-sm shrink-0 font-bold text-sm">
+                {companyName ? companyName.charAt(0).toUpperCase() : 'O'}
+              </div>
+              <div className="min-w-0">
+                <h1 className="text-sm font-bold text-slate-900 tracking-tight leading-none truncate">
+                  Mi Oficina
+                </h1>
+                <p className="text-xs text-slate-500 font-medium truncate mt-0.5">
+                  {companyName || 'Empresarial'}
+                </p>
+              </div>
+            </div>
+            <button 
+              onClick={() => setSidebarOpen(false)} 
+              className="lg:hidden p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
           
+          {/* Navigation Links */}
+          <nav className="p-3 space-y-1 overflow-y-auto max-h-[calc(100vh-140px)]">
+            <div className="px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              Módulos Principales
+            </div>
+            {navItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => {
+                    handleTabChange(item.id);
+                    setSidebarOpen(false);
+                  }}
+                  className={`flex items-center w-full px-3 py-2.5 rounded-lg text-sm font-medium transition-all group ${
+                    isActive 
+                      ? 'bg-slate-900 text-white shadow-sm' 
+                      : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'
+                  }`}
+                >
+                  <Icon className={`w-4 h-4 mr-3 transition-colors ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-slate-600'}`} />
+                  <span className="truncate">{item.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </div>
+
+        {/* User Profile Footer */}
+        <div className="p-3 border-t border-slate-200 bg-slate-50/50" ref={userMenuRef}>
           {userMenuOpen && (
-             <div className="absolute bottom-24 left-4 right-4 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden animate-fade-in z-40">
-                {/* Install App Button - Only shows if deferredPrompt exists */}
+             <div className="absolute bottom-20 left-3 right-3 bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden animate-fade-in z-50 py-1">
+                {/* Install App Button */}
                 {deferredPrompt && (
                   <>
                     <button 
                       onClick={handleInstallApp}
-                      className="w-full text-left px-4 py-3 text-sm text-indigo-600 hover:bg-indigo-50 flex items-center transition-colors font-semibold"
+                      className="w-full text-left px-4 py-2.5 text-xs text-indigo-600 hover:bg-indigo-50 flex items-center transition-colors font-semibold"
                     >
-                      <Smartphone className="w-4 h-4 mr-2" /> Instalar App
+                      <Smartphone className="w-4 h-4 mr-2" /> Instalar Aplicación
                     </button>
-                    <div className="h-px bg-gray-100"></div>
+                    <div className="h-px bg-slate-100 my-1"></div>
                   </>
                 )}
 
@@ -792,16 +858,16 @@ function App() {
                   <>
                     <button 
                       onClick={handleOpenSettings}
-                      className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 flex items-center transition-colors"
+                      className="w-full text-left px-4 py-2.5 text-xs text-slate-700 hover:bg-slate-100 flex items-center transition-colors font-medium"
                     >
-                       <Settings className="w-4 h-4 mr-2 text-gray-400" /> Ajustes
+                       <Settings className="w-4 h-4 mr-2 text-slate-400" /> Configuración General
                     </button>
-                    <div className="h-px bg-gray-100"></div>
+                    <div className="h-px bg-slate-100 my-1"></div>
                   </>
                 )}
                 <button 
                   onClick={handleLogout}
-                  className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center transition-colors"
+                  className="w-full text-left px-4 py-2.5 text-xs text-rose-600 hover:bg-rose-50 flex items-center transition-colors font-medium"
                 >
                    <LogOut className="w-4 h-4 mr-2" /> Cerrar Sesión
                 </button>
@@ -810,120 +876,102 @@ function App() {
 
           <button 
             onClick={() => setUserMenuOpen(!userMenuOpen)}
-            className="flex items-center w-full p-2 rounded-lg hover:bg-gray-50 transition-colors group relative"
+            className="flex items-center w-full p-2 rounded-lg bg-white border border-slate-200/80 hover:border-slate-300 hover:bg-slate-50 transition-all text-left shadow-xs"
           >
-            <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-700 font-semibold text-xs shrink-0">
               {currentUser.firstName.charAt(0)}{currentUser.lastName.charAt(0)}
             </div>
-            <div className="ml-3 overflow-hidden text-left flex-1">
-              <p className="text-sm font-medium text-gray-700 truncate">{currentUser.firstName}</p>
-              <p className="text-xs text-gray-400 truncate">{currentUser.position}</p>
+            <div className="ml-2.5 overflow-hidden flex-1 min-w-0">
+              <p className="text-xs font-semibold text-slate-900 truncate leading-tight">{currentUser.firstName} {currentUser.lastName}</p>
+              <p className="text-[11px] text-slate-500 truncate leading-tight mt-0.5">{currentUser.position || 'Colaborador'}</p>
             </div>
-            <ChevronUp className={`w-4 h-4 text-gray-400 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+            <ChevronUp className={`w-3.5 h-3.5 text-slate-400 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
           </button>
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden">
-        {/* Header */}
-        <header className="bg-white border-b border-gray-100 h-16 flex items-center justify-between px-6 shrink-0 z-10">
-          <button 
-            onClick={() => setSidebarOpen(true)} 
-            className="lg:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-            title="Abrir Menú"
-          >
-            <Menu className="w-6 h-6" />
-          </button>
+      {/* Main Container */}
+      <main className="flex-1 flex flex-col h-full min-w-0 overflow-hidden bg-slate-50">
+        
+        {/* Executive Top Header */}
+        <header className="bg-white border-b border-slate-200 h-14 flex items-center justify-between px-4 sm:px-6 shrink-0 z-30">
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setSidebarOpen(true)} 
+              className="lg:hidden p-1.5 text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+              title="Abrir Menú"
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+
+            {/* Breadcrumb Navigation */}
+            <div className="flex items-center gap-2 text-xs">
+              <span className="font-medium text-slate-400 hidden sm:inline">Mi Oficina</span>
+              <span className="text-slate-300 hidden sm:inline">/</span>
+              <span className="font-semibold text-slate-800 text-sm tracking-tight">{currentTabLabel}</span>
+            </div>
+          </div>
           
-          <div className="ml-auto flex items-center space-x-4">
+          <div className="flex items-center space-x-3">
             
             {/* Status & Version Indicator */}
             <div 
-              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-gray-50 border border-gray-200 text-xs font-medium text-gray-600 transition-all hover:bg-gray-100 cursor-default"
-              title={isOnline ? "Conectado a la Base de Datos" : "Sin conexión a Internet"}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 border border-slate-200/80 text-[11px] font-medium text-slate-600 cursor-default"
+              title={isOnline ? "Conectado a la Base de Datos en tiempo real" : "Sin conexión a Internet"}
             >
                <span 
-                 className={`w-2.5 h-2.5 rounded-full shadow-sm transition-colors ${!isOnline && 'animate-pulse'}`} 
-                 style={{ backgroundColor: isOnline ? appStatusColor : '#9ca3af' }}
-               ></span>
-               <span className="hidden sm:inline-block">v{appVersion}</span>
-               {!isOnline && <span className="text-gray-400 text-[10px] ml-1 uppercase">(Offline)</span>}
+                 className={`w-2 h-2 rounded-full transition-colors ${!isOnline ? 'bg-amber-500 animate-pulse' : 'bg-emerald-500'}`} 
+               />
+               <span className="font-mono text-[10.5px]">v{appVersion}</span>
+               {!isOnline && <span className="text-amber-600 font-semibold text-[10px] ml-0.5">(Offline)</span>}
             </div>
 
-            <button className="relative p-2 text-gray-400 hover:text-indigo-600 transition-colors">
-              <Bell className="w-6 h-6" />
-              <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></span>
-            </button>
+            {/* Help / Mascot Icon shortcut if Mascot exists */}
+            {mascotaUrl && (
+              <button 
+                onClick={() => handleTabChange('mascota')}
+                className="w-7 h-7 rounded-full overflow-hidden border border-slate-200 hover:border-slate-400 transition-colors"
+                title={mascotaName}
+              >
+                <img src={mascotaUrl} alt={mascotaName} className="w-full h-full object-cover" />
+              </button>
+            )}
           </div>
         </header>
 
-        {/* Page Content */}
-        <div className="flex-1 overflow-auto bg-gray-50/50 pb-20 lg:pb-0">
+        {/* Dynamic Page Content */}
+        <div className="flex-1 overflow-auto bg-slate-50/60 pb-20 lg:pb-6">
           {renderContent()}
         </div>
 
-        {/* Mobile Navigation Bar */}
+        {/* Clean Mobile Bottom Navigation Bar */}
         {!currentUser?.isOfficeUser && (
-          <motion.nav 
-            animate={{ 
-              boxShadow: [
-                "0 15px 35px -5px rgba(79, 70, 229, 0.22), inset 0 1px 2px rgba(255,255,255,0.5)", 
-                "0 20px 45px -5px rgba(79, 70, 229, 0.38), inset 0 1px 2px rgba(255,255,255,0.5)", 
-                "0 15px 35px -5px rgba(79, 70, 229, 0.22), inset 0 1px 2px rgba(255,255,255,0.5)"
-              ] 
-            }}
-            transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-            className="lg:hidden fixed bottom-6 left-1/2 -translate-x-1/2 w-[92%] max-w-md bg-white/20 backdrop-blur-2xl border border-white/50 border-t-white/70 border-b-white/20 rounded-2xl z-40 px-2 py-2"
-            style={{
-              background: "linear-gradient(135deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.1) 100%)"
-            }}
-          >
-            {/* Subtle glossy reflection effect inside the glass bar */}
-            <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-white/10 to-transparent pointer-events-none -z-10 bg-opacity-20" />
-            
-            <div className="flex items-center justify-around relative">
-              {navItems
-                .filter(item => mobileNavSections.includes(item.id))
-                .map((item) => {
-                  const Icon = item.icon;
-                  const isActive = activeTab === item.id;
-                  return (
-                    <button
-                      key={item.id}
-                      onClick={() => handleTabChange(item.id)}
-                      className={`relative flex flex-col items-center justify-center py-2 px-3.5 rounded-xl transition-all duration-300 z-10 ${
-                        isActive 
-                          ? 'text-indigo-600' 
-                          : 'text-gray-500 hover:text-gray-700'
-                      }`}
-                    >
-                      {isActive && (
-                        <motion.div
-                          layoutId="activeTabPill"
-                          className="absolute inset-0 -z-10 bg-gradient-to-tr from-indigo-500/15 via-blue-500/5 to-transparent rounded-xl border border-white/40"
-                          style={{
-                            boxShadow: "inset 0 1px 2px rgba(255,255,255,0.4), 0 8px 16px -2px rgba(99,102,241,0.2)"
-                          }}
-                          transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                        />
-                      )}
-                      <Icon className={`w-6 h-6 ${isActive ? 'scale-110 text-indigo-600 drop-shadow-[0_2px_8px_rgba(99,102,241,0.3)]' : 'scale-100 text-gray-500'} transition-transform duration-300`} />
-                      <span className={`text-[9.5px] font-bold mt-1 tracking-tight ${isActive ? 'opacity-100 max-h-4' : 'opacity-0 max-h-0'} overflow-hidden transition-all duration-300`}>
-                        {item.label.split(' ')[0]}
-                      </span>
-                      {isActive && (
-                        <motion.div
-                          layoutId="activeTabIndicator"
-                          className="absolute -bottom-1 w-1.5 h-1.5 bg-gradient-to-tr from-indigo-500 to-indigo-600 rounded-full shadow-[0_0_8px_rgba(99,102,241,0.8)]"
-                          transition={{ type: "spring", stiffness: 350, damping: 30 }}
-                        />
-                      )}
-                    </button>
-                  );
-                })}
-            </div>
-          </motion.nav>
+          <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-slate-200 z-40 px-2 py-1.5 flex items-center justify-around shadow-sm">
+            {navItems
+              .filter(item => mobileNavSections.includes(item.id))
+              .map((item) => {
+                const Icon = item.icon;
+                const isActive = activeTab === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => handleTabChange(item.id)}
+                    className={`flex flex-col items-center justify-center py-1 px-2.5 rounded-lg transition-colors ${
+                      isActive 
+                        ? 'text-slate-900 font-semibold' 
+                        : 'text-slate-400 hover:text-slate-600'
+                    }`}
+                  >
+                    <div className={`p-1 rounded-md transition-colors ${isActive ? 'bg-slate-100 text-slate-900' : ''}`}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <span className="text-[10px] tracking-tight mt-0.5 truncate max-w-[56px]">
+                      {item.label.split(' ')[0]}
+                    </span>
+                  </button>
+                );
+              })}
+          </nav>
         )}
       </main>
 

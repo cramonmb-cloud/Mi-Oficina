@@ -1111,80 +1111,80 @@ export const Expenses: React.FC<ExpensesProps> = ({
       </div>
 
       {/* Summary Card for Selected Week */}
-      <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-100 p-6 rounded-xl flex items-center justify-between">
+      <div className="bg-white border border-slate-200/80 p-5 rounded-xl flex items-center justify-between shadow-xs">
         <div>
-          <p className="text-green-800 font-medium mb-1">
+          <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-1">
             {officeSession 
               ? `Total Semana Actual (${officeSession.name})` 
               : `Total Semana Actual ${selectedOfficeFilter !== 'all' ? `(${offices.find(o => o.id === selectedOfficeFilter)?.name || 'Matriz'})` : '(Consolidado)'}`
             }
           </p>
-          <h3 className="text-3xl font-bold text-green-700">${weeklyTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</h3>
+          <h3 className="text-2xl sm:text-3xl font-bold font-mono text-slate-900 tabular-nums">${weeklyTotal.toLocaleString('es-MX', { minimumFractionDigits: 2 })}</h3>
         </div>
-        <div className="bg-white p-3 rounded-full shadow-sm">
-          <Calendar className="w-8 h-8 text-green-600" />
+        <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+          <Calendar className="w-6 h-6 text-slate-700" />
         </div>
       </div>
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs overflow-hidden">
         <table className="w-full text-left border-collapse">
-          <thead className="bg-gray-50 border-b border-gray-100">
+          <thead className="bg-slate-50 border-b border-slate-200 text-[11px] uppercase text-slate-500 font-semibold tracking-wider">
             <tr>
-              <th className="p-4 font-semibold text-gray-600 w-12 text-center">Ticket</th>
-              <th className="p-4 font-semibold text-gray-600">Descripción</th>
+              <th className="py-3 px-4 w-12 text-center">Ticket</th>
+              <th className="py-3 px-4">Descripción</th>
               {multiOfficeEnabled && !officeSession && (
-                <th className="p-4 font-semibold text-gray-600 hidden lg:table-cell">Oficina</th>
+                <th className="py-3 px-4 hidden lg:table-cell">Oficina</th>
               )}
-              <th className="p-4 font-semibold text-gray-600 hidden sm:table-cell">Categoría</th>
-              <th className="p-4 font-semibold text-gray-600 hidden md:table-cell">Fecha</th>
-              <th className="p-4 font-semibold text-gray-600 text-right">Monto</th>
-              <th className="p-4 font-semibold text-gray-600 w-10"></th>
+              <th className="py-3 px-4 hidden sm:table-cell">Categoría</th>
+              <th className="py-3 px-4 hidden md:table-cell">Fecha</th>
+              <th className="py-3 px-4 text-right">Monto</th>
+              <th className="py-3 px-4 w-12 text-right">Acciones</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-slate-100 text-xs">
             {isLoading ? (
               <tr>
-                <td colSpan={7} className="p-20 text-center">
+                <td colSpan={7} className="p-16 text-center">
                   <div className="flex flex-col items-center">
-                    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-indigo-600 mb-4"></div>
-                    <p className="text-gray-500 font-medium">Cargando gastos...</p>
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-slate-900 mb-2"></div>
+                    <p className="text-xs text-slate-500 font-medium">Cargando registros de gastos...</p>
                   </div>
                 </td>
               </tr>
             ) : filteredExpenses.length === 0 ? (
               <tr>
-                <td colSpan={7} className="p-12 text-center text-gray-400">
-                  No hay gastos registrados en la semana del <span className="font-semibold text-gray-500">{weekRange.label}</span>.
+                <td colSpan={7} className="p-12 text-center text-slate-400 font-medium">
+                  No hay gastos registrados en la semana del <span className="font-semibold text-slate-600">{weekRange.label}</span>.
                 </td>
               </tr>
             ) : (
               filteredExpenses.map(expense => (
-                <tr key={expense.id} className="hover:bg-gray-50/50 transition-colors group">
+                <tr key={expense.id} className="hover:bg-slate-50 transition-colors group">
                   {/* Ticket Column */}
-                  <td className="p-4 text-center">
+                  <td className="py-3 px-4 text-center">
                      {expense.ticketImage ? (
                         <button 
                           onClick={() => setViewTicketImage(expense.ticketImage || null)}
-                          className="bg-blue-50 text-blue-600 p-1.5 rounded-lg hover:bg-blue-100 transition-colors"
+                          className="bg-slate-100 text-slate-700 p-1.5 rounded-lg hover:bg-slate-200 border border-slate-200 transition-colors"
                           title="Ver Ticket"
                         >
-                           <Eye className="w-4 h-4" />
+                           <Eye className="w-3.5 h-3.5" />
                         </button>
                      ) : (
-                        <span className="text-gray-300 text-xs">-</span>
+                        <span className="text-slate-300 text-xs">-</span>
                      )}
                   </td>
-                  <td className="p-4 text-gray-800 font-medium">
+                  <td className="py-3 px-4 text-slate-900 font-medium">
                     {expense.description}
                     {/* Mobile only view details */}
-                    <div className="sm:hidden text-xs text-gray-400 mt-1 flex flex-wrap gap-2 items-center">
+                    <div className="sm:hidden text-[11px] text-slate-400 mt-0.5 flex flex-wrap gap-1.5 items-center">
                       <span>{expense.category}</span>
                       <span>•</span>
-                      <span>{expense.date}</span>
+                      <span className="font-mono">{expense.date}</span>
                       {multiOfficeEnabled && !officeSession && (
                         <>
                           <span>•</span>
-                          <span className="text-indigo-600 font-semibold">
+                          <span className="text-slate-700 font-semibold">
                             {offices.find(o => o.id === expense.officeId)?.name || 'Matriz/Global'}
                           </span>
                         </>
@@ -1192,33 +1192,41 @@ export const Expenses: React.FC<ExpensesProps> = ({
                     </div>
                   </td>
                   {multiOfficeEnabled && !officeSession && (
-                    <td className="p-4 hidden lg:table-cell">
-                      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-100">
-                        <Building2 className="w-3 h-3 mr-1" />
+                    <td className="py-3 px-4 hidden lg:table-cell">
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200">
+                        <Building2 className="w-3 h-3 mr-1 text-slate-500" />
                         {offices.find(o => o.id === expense.officeId)?.name || 'Matriz/Global'}
                       </span>
                     </td>
                   )}
-                  <td className="p-4 hidden sm:table-cell">
-                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
-                      <Tag className="w-3 h-3 mr-1" /> {expense.category}
+                  <td className="py-3 px-4 hidden sm:table-cell">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                      <Tag className="w-3 h-3 mr-1 text-slate-400" /> {expense.category}
                     </span>
                   </td>
-                  <td className="p-4 text-gray-500 hidden md:table-cell text-sm">
-                     <span className="font-mono bg-gray-50 px-2 py-1 rounded border border-gray-200">
+                  <td className="py-3 px-4 text-slate-500 hidden md:table-cell font-mono text-[11px]">
+                     <span className="bg-slate-50 px-2 py-0.5 rounded border border-slate-200">
                        {expense.date}
                      </span>
                   </td>
-                  <td className="p-4 text-right font-bold text-gray-800">
-                    ${expense.amount.toFixed(2)}
+                  <td className="py-3 px-4 text-right font-bold font-mono text-slate-900 tabular-nums">
+                    ${expense.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                   </td>
-                  <td className="p-4 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <button onClick={() => handleEdit(expense)} className="text-gray-300 hover:text-blue-500 transition-colors">
-                        <Edit className="w-4 h-4" />
+                  <td className="py-3 px-4 text-right">
+                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button 
+                        onClick={() => handleEdit(expense)} 
+                        className="p-1 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-md transition-colors"
+                        title="Editar Gasto"
+                      >
+                        <Edit className="w-3.5 h-3.5" />
                       </button>
-                      <button onClick={() => handleDelete(expense.id)} className="text-gray-300 hover:text-red-500 transition-colors">
-                        <Trash2 className="w-4 h-4" />
+                      <button 
+                        onClick={() => handleDelete(expense.id)} 
+                        className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-md transition-colors"
+                        title="Eliminar Gasto"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </td>
@@ -1231,23 +1239,37 @@ export const Expenses: React.FC<ExpensesProps> = ({
 
       {/* NEW EXPENSE MODAL */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <h3 className="text-xl font-bold mb-4 text-gray-800">{editingId ? 'Editar Gasto' : 'Registrar Nuevo Gasto'}</h3>
+        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-50 p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl w-full max-w-md p-6 shadow-xl max-h-[90vh] overflow-y-auto border border-slate-200">
+            <h3 className="text-base font-bold mb-4 text-slate-900 tracking-tight pb-2 border-b border-slate-100">
+              {editingId ? 'Editar Registro de Gasto' : 'Registrar Nuevo Gasto'}
+            </h3>
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
-                <input required className="w-full border p-2 rounded focus:ring-2 focus:ring-green-500 outline-none bg-white text-gray-900 placeholder-gray-500" 
-                  value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} />
+                <label className="block text-[11px] font-semibold uppercase text-slate-600 mb-1">Descripción / Concepto</label>
+                <input 
+                  required 
+                  className="w-full border border-slate-200 p-2.5 rounded-lg text-xs focus:ring-2 focus:ring-slate-900 outline-none bg-slate-50/50 focus:bg-white text-slate-900 placeholder:text-slate-400 transition-all" 
+                  placeholder="Ej. Papelería y consumibles"
+                  value={formData.description} 
+                  onChange={e => setFormData({...formData, description: e.target.value})} 
+                />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Monto ($)</label>
-                  <input required type="number" step="0.01" className="w-full border p-2 rounded focus:ring-2 focus:ring-green-500 outline-none bg-white text-gray-900 placeholder-gray-500" 
-                    value={formData.amount || ''} onChange={e => setFormData({...formData, amount: parseFloat(e.target.value)})} />
+                  <label className="block text-[11px] font-semibold uppercase text-slate-600 mb-1">Monto ($ MXN)</label>
+                  <input 
+                    required 
+                    type="number" 
+                    step="0.01" 
+                    className="w-full border border-slate-200 p-2.5 rounded-lg text-xs font-mono font-semibold focus:ring-2 focus:ring-slate-900 outline-none bg-slate-50/50 focus:bg-white text-slate-900 placeholder:text-slate-400 transition-all" 
+                    placeholder="0.00"
+                    value={formData.amount || ''} 
+                    onChange={e => setFormData({...formData, amount: parseFloat(e.target.value)})} 
+                  />
                 </div>
                 <div>
-                   <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
+                   <label className="block text-[11px] font-semibold uppercase text-slate-600 mb-1">Categoría</label>
                    <select className="w-full border p-2 rounded focus:ring-2 focus:ring-green-500 outline-none bg-white text-gray-900"
                     value={formData.category || availableCategories[0]} onChange={e => setFormData({...formData, category: e.target.value})}>
                      {availableCategories.map(c => (

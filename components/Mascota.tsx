@@ -203,66 +203,66 @@ export const Mascota: React.FC<MascotaProps> = ({
   }
 
   return (
-    <div className="p-6 max-w-6xl mx-auto h-full flex flex-col overflow-y-auto custom-scrollbar">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-6xl mx-auto h-full flex flex-col overflow-y-auto custom-scrollbar space-y-6">
       
-      <div className="flex items-center justify-between mb-8 flex-shrink-0">
+      <div className="flex items-center justify-between flex-shrink-0">
         <div>
-          <h2 className="text-3xl font-bold text-gray-800 flex items-center">
-            <Sparkles className="w-8 h-8 text-blue-500 mr-3" />
+          <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <Sparkles className="w-5 h-5 text-slate-800" />
             Mi {mascotaName}
           </h2>
-          <p className="text-gray-500 mt-1">Genera contenido creativo para tu oficina.</p>
+          <p className="text-xs text-slate-500 mt-0.5">Generación de contenido y piezas gráficas corporativas</p>
         </div>
         <div className="hidden md:block">
-           <img src={mascotaUrl} alt="Ref" className="w-12 h-12 rounded-full border-2 border-white shadow-md object-cover" title="Imagen de referencia actual" />
+           <img src={mascotaUrl} alt="Ref" className="w-10 h-10 rounded-full border border-slate-200 shadow-xs object-cover" title="Imagen de referencia actual" />
         </div>
       </div>
 
       {/* Tabs Menu inside Mi Mascota */}
-      <div className="flex border-b border-gray-100 mb-8 flex-shrink-0">
+      <div className="flex border-b border-slate-200 flex-shrink-0">
         <button
           type="button"
           onClick={() => setActiveTab('creativo')}
-          className={`py-3 px-6 font-bold text-sm border-b-2 flex items-center gap-2 transition-all ${
+          className={`py-2.5 px-4 font-semibold text-xs border-b-2 flex items-center gap-2 transition-all ${
             activeTab === 'creativo'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-gray-400 hover:text-gray-600 hover:border-gray-200'
+              ? 'border-slate-900 text-slate-900'
+              : 'border-transparent text-slate-400 hover:text-slate-700 hover:border-slate-200'
           }`}
         >
-          <Sparkles className="w-4 h-4" /> Generador Creativo
+          <Sparkles className="w-3.5 h-3.5" /> Generador Creativo
         </button>
         <button
           type="button"
           onClick={() => setActiveTab('cumpleanos')}
-          className={`py-3 px-6 font-bold text-sm border-b-2 flex items-center gap-2 transition-all ${
+          className={`py-2.5 px-4 font-semibold text-xs border-b-2 flex items-center gap-2 transition-all ${
             activeTab === 'cumpleanos'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-gray-400 hover:text-gray-600 hover:border-gray-200'
+              ? 'border-slate-900 text-slate-900'
+              : 'border-transparent text-slate-400 hover:text-slate-700 hover:border-slate-200'
           }`}
         >
-          <Cake className="w-4 h-4 text-indigo-500" /> Galería de Cumpleaños
+          <Cake className="w-3.5 h-3.5 text-slate-500" /> Galería de Cumpleaños
         </button>
       </div>
 
       {activeTab === 'creativo' ? (
         <>
-          <div className="flex flex-col lg:flex-row gap-8 mb-12 flex-shrink-0">
-            <div className="w-full lg:w-1/3 flex flex-col gap-4">
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex-1 flex flex-col">
-                <label className="text-sm font-bold text-gray-700 mb-2 block">¿Qué quieres que haga {mascotaName}?</label>
+          <div className="flex flex-col lg:flex-row gap-6 flex-shrink-0">
+            <div className="w-full lg:w-80 shrink-0 flex flex-col gap-4">
+              <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-xs flex-1 flex flex-col">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-2 block">Instrucción para {mascotaName}</label>
                 <form onSubmit={handleGenerate} className="flex-1 flex flex-col">
                   <textarea 
-                    className="w-full flex-1 border border-gray-200 rounded-xl p-4 text-gray-700 focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none resize-none bg-gray-50 mb-4 min-h-[120px]"
-                    placeholder="Ej: Un anuncio que diga '¡Bienvenidos!', sosteniendo una taza de café, celebrando un cumpleaños..."
+                    className="w-full flex-1 border border-slate-200 rounded-lg p-3 text-xs text-slate-800 focus:ring-2 focus:ring-slate-900 outline-none resize-none bg-slate-50/50 focus:bg-white mb-3 min-h-[120px] placeholder:text-slate-400"
+                    placeholder="Ej: Un anuncio que diga '¡Bienvenidos!', sosteniendo una taza de café, celebrando un aniversario..."
                     value={prompt}
                     onChange={(e) => setPrompt(e.target.value)}
                   />
                   
                   {error && (
-                    <div className="bg-red-50 text-red-700 text-sm p-4 rounded-lg mb-4 border border-red-200 flex items-start animate-pulse">
-                      <AlertTriangle className="w-5 h-5 mr-2 flex-shrink-0" />
+                    <div className="bg-rose-50 text-rose-700 text-xs p-3 rounded-lg mb-3 border border-rose-200 flex items-start">
+                      <AlertTriangle className="w-4 h-4 mr-2 shrink-0 text-rose-600" />
                       <div>
-                        <span className="font-bold block">¡Atención!</span>
+                        <span className="font-bold block">Aviso</span>
                         {error}
                       </div>
                     </div>
@@ -271,48 +271,44 @@ export const Mascota: React.FC<MascotaProps> = ({
                   <button 
                     type="submit" 
                     disabled={loading || !prompt || cooldown > 0}
-                    className={`w-full font-bold py-4 rounded-xl shadow-lg transform transition-all flex items-center justify-center
+                    className={`w-full font-semibold text-xs py-2.5 rounded-lg shadow-xs transition-all flex items-center justify-center
                       ${cooldown > 0 
-                        ? 'bg-gray-400 cursor-not-allowed text-white' 
-                        : 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white active:scale-95'
+                        ? 'bg-slate-300 cursor-not-allowed text-slate-600' 
+                        : 'bg-slate-900 hover:bg-slate-800 text-white active:scale-[0.99]'
                       }
-                      ${(loading || !prompt) && 'opacity-50 cursor-not-allowed'}
+                      ${(loading || !prompt) && 'opacity-40 cursor-not-allowed'}
                     `}
                   >
                     {loading ? (
                       <>
-                        <Loader2 className="w-5 h-5 mr-2 animate-spin" /> Creando...
+                        <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> Creando...
                       </>
                     ) : cooldown > 0 ? (
                       <>
-                        <Clock className="w-5 h-5 mr-2" /> Espera {cooldown}s
+                        <Clock className="w-4 h-4 mr-1.5" /> Espera {cooldown}s
                       </>
                     ) : (
                       <>
-                        <Sparkles className="w-5 h-5 mr-2" /> Generar Imagen
+                        <Sparkles className="w-4 h-4 mr-1.5" /> Generar Imagen
                       </>
                     )}
                   </button>
-                  <div className="mt-3 text-center space-y-1">
+                  <div className="mt-2.5 text-center space-y-1">
                     {cooldown > 0 && (
-                      <p className="text-xs text-gray-400">
-                        Esperando enfriamiento para proteger tu llave API.
+                      <p className="text-[10px] text-slate-400">
+                        Esperando enfriamiento preventivo de API.
                       </p>
                     )}
-                    <p className="text-[10px] text-gray-400 flex items-center justify-center">
-                      <AlertTriangle className="w-3 h-3 mr-1" />
-                      Cada imagen generada tiene un costo asociado. Úsalo con moderación.
-                    </p>
                   </div>
                 </form>
               </div>
             </div>
 
-            <div className="w-full lg:w-2/3 bg-gray-100 rounded-2xl border border-gray-200 min-h-[300px] flex items-center justify-center relative overflow-hidden group">
+            <div className="flex-1 bg-slate-50 rounded-xl border border-slate-200 min-h-[300px] flex items-center justify-center relative overflow-hidden group">
               {loading ? (
                 <div className="text-center">
-                  <div className="w-20 h-20 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin mx-auto mb-4"></div>
-                  <p className="text-gray-500 font-medium animate-pulse">{mascotaName} se está preparando...</p>
+                  <div className="w-12 h-12 border-3 border-slate-200 border-t-slate-900 rounded-full animate-spin mx-auto mb-3"></div>
+                  <p className="text-xs text-slate-600 font-medium">{mascotaName} está procesando la imagen...</p>
                 </div>
               ) : generatedImage ? (
                 <>
@@ -321,29 +317,29 @@ export const Mascota: React.FC<MascotaProps> = ({
                     alt="Generado por IA" 
                     className="w-full h-full object-contain p-4 animate-fade-in max-h-[400px]"
                   />
-                  <div className="absolute bottom-6 right-6 flex gap-3">
+                  <div className="absolute bottom-4 right-4 flex gap-2">
                     <button 
                       onClick={() => handleDownload(generatedImage, 'mascota-actual')}
-                      className="bg-white text-gray-800 px-6 py-3 rounded-xl font-bold shadow-xl hover:bg-gray-50 transition-colors flex items-center"
+                      className="bg-slate-900 text-white px-4 py-2 rounded-lg font-semibold text-xs shadow-xs hover:bg-slate-800 transition-colors flex items-center"
                     >
-                      <Download className="w-5 h-5 mr-2 text-indigo-600" /> Descargar
+                      <Download className="w-4 h-4 mr-1.5" /> Descargar
                     </button>
                   </div>
                 </>
               ) : (
-                <div className="text-center text-gray-400 p-8">
-                  <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <ImageIcon className="w-10 h-10 opacity-30" />
+                <div className="text-center text-slate-400 p-8">
+                  <div className="w-16 h-16 bg-slate-200/80 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <ImageIcon className="w-7 h-7 opacity-40 text-slate-600" />
                   </div>
-                  <p className="text-lg font-medium">Tu creación aparecerá aquí</p>
+                  <p className="text-xs font-medium text-slate-600">La vista previa aparecerá aquí</p>
                 </div>
               )}
             </div>
           </div>
 
           <div className="flex-1">
-            <h3 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-               <Calendar className="w-5 h-5 mr-2 text-gray-500" /> Historial Creativo
+            <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700 mb-3 flex items-center">
+               <Calendar className="w-4 h-4 mr-1.5 text-slate-500" /> Historial Creativo
             </h3>
             
             {loadingHistory ? (

@@ -1,10 +1,12 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Trash2, Phone, Mail, User, MapPin, Filter, Layers, Pencil, Lock, Search, X, Building, Link as LinkIcon, FileSpreadsheet, UploadCloud, AlertTriangle, Download, CheckCircle, RefreshCcw, Users, Clipboard, LayoutGrid, Table, Cake, Loader2, FileText, Calendar, Umbrella, Coins, Clock, Check, AlertCircle, MessageSquare } from 'lucide-react';
+import { Plus, Trash2, Phone, Mail, User, MapPin, Filter, Layers, Pencil, Lock, Search, X, Building, Link as LinkIcon, FileSpreadsheet, UploadCloud, AlertTriangle, Download, CheckCircle, RefreshCcw, Users, Clipboard, LayoutGrid, Table, Cake, Loader2, FileText, Calendar, Umbrella, Coins, Clock, Check, AlertCircle, MessageSquare, CreditCard, QrCode, Upload } from 'lucide-react';
 import { Employee, PersonnelCategory, Plaza, VacationRequest } from '../types';
 import { addEmployee, deleteEmployee, updateEmployee, addPlaza, deletePlaza, deleteAllEmployees, saveEmployeesBatch, subscribeToVacationRequests, addVacationRequest, updateVacationRequest, deleteVacationRequest } from '../services/dbService';
 import { VacationsControl } from './VacationsControl';
 import { VacationsBalancesTable } from './VacationsBalancesTable';
+import { VirtualCredentialModal } from './VirtualCredentialModal';
+import QRCode from 'qrcode';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -14,6 +16,8 @@ interface PersonnelProps {
   plazas: Plaza[];
   isLoading?: boolean;
   currentUser?: Employee | null;
+  companyName?: string;
+  companyLogoUrl?: string;
 }
 
 const CATEGORIES: PersonnelCategory[] = ['Oficina', 'Ejecutivos', 'Supervisoras', 'Promotoras'];
@@ -25,6 +29,8 @@ const INITIAL_FORM_STATE = {
   position: '', 
   plaza: '', 
   phone: '', 
+  curp: '',
+  photoUrl: '',
   birthDate: '', 
   hireDate: '',
   category: 'Oficina' as PersonnelCategory,
@@ -37,7 +43,7 @@ const INITIAL_FORM_STATE = {
 
 import { getLocalDateString } from '../lib/dateUtils';
 
-export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoading, currentUser }) => {
+export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoading, currentUser, companyName, companyLogoUrl }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isPlazaModalOpen, setIsPlazaModalOpen] = useState(false);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -45,6 +51,7 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
   const [editingId, setEditingId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
+  const [selectedCredentialEmployee, setSelectedCredentialEmployee] = useState<Employee | null>(null);
   
   // Filters State
   const [selectedPlazaFilter, setSelectedPlazaFilter] = useState('');
@@ -238,6 +245,48 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
     setIsModalOpen(true);
   };
 
+  // Descarga directa de solo el código QR en JPG con el nombre del colaborador
+  const handleDirectDownloadQr = async (employee: Employee, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    try {
+      const verificationUrl = `${window.location.origin}${window.location.pathname}?credencial=${employee.id}`;
+      const qrDataUrl = await QRCode.toDataURL(verificationUrl, {
+        width: 1000,
+        margin: 2,
+        color: { dark: '#0f172a', light: '#ffffff' },
+        errorCorrectionLevel: 'H'
+      });
+
+      const cleanName = `${employee.firstName} ${employee.lastName}`.trim().toUpperCase().replace(/[/\\?%*:|"<>]/g, '');
+      const fileName = `${cleanName || 'QR_EMPLEADO'}.jpg`;
+
+      const canvas = document.createElement('canvas');
+      const size = 1000;
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        const img = new Image();
+        img.onload = () => {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, size, size);
+          ctx.drawImage(img, 40, 40, size - 80, size - 80);
+          
+          const link = document.createElement('a');
+          link.download = fileName;
+          link.href = canvas.toDataURL('image/jpeg', 0.95);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        };
+        img.src = qrDataUrl;
+      }
+    } catch (err) {
+      console.error("Error generating QR for download:", err);
+      alert("Error al generar el código QR.");
+    }
+  };
+
   // Helper para generar email automático
   const generateAutoEmail = (first: string, last: string) => {
     const clean = (str: string) => str
@@ -303,7 +352,9 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
         email: formData.email || '',
         position: formData.position || '',
         plaza: formData.plaza || '',
-        phone: formData.phone || '',
+        phone: formData.phone || formData.email || '',
+        curp: formData.curp ? formData.curp.trim().toUpperCase() : '',
+        photoUrl: formData.photoUrl || '',
         birthDate: formData.birthDate || '',
         hireDate: formData.hireDate || '',
         groupName: formData.groupName || '',
@@ -563,15 +614,16 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
   };
 
   return (
-    <div className="p-6">
-      {/* Sub-section Switcher */}
-      <div className="flex border-b border-gray-200 mb-6 gap-6">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-6 max-w-7xl mx-auto">
+      
+      {/* Executive Sub-section Switcher */}
+      <div className="flex border-b border-slate-200 gap-6">
         <button
           onClick={() => setActiveSubSection('directory')}
-          className={`pb-3 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
+          className={`pb-3 text-xs sm:text-sm font-semibold border-b-2 transition-all flex items-center gap-2 ${
             activeSubSection === 'directory'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              ? 'border-slate-900 text-slate-900'
+              : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
           }`}
         >
           <Users className="w-4 h-4" />
@@ -579,25 +631,25 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
         </button>
         <button
           onClick={() => setActiveSubSection('vacations')}
-          className={`pb-3 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
+          className={`pb-3 text-xs sm:text-sm font-semibold border-b-2 transition-all flex items-center gap-2 ${
             activeSubSection === 'vacations'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              ? 'border-slate-900 text-slate-900'
+              : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
           }`}
         >
           <Umbrella className="w-4 h-4" />
-          Control de Vacaciones
+          Control de Vacaciones y Permisos
         </button>
         <button
           onClick={() => setActiveSubSection('balances')}
-          className={`pb-3 text-sm font-bold border-b-2 transition-all flex items-center gap-2 ${
+          className={`pb-3 text-xs sm:text-sm font-semibold border-b-2 transition-all flex items-center gap-2 ${
             activeSubSection === 'balances'
-              ? 'border-indigo-600 text-indigo-600'
-              : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              ? 'border-slate-900 text-slate-900'
+              : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
           }`}
         >
           <Coins className="w-4 h-4" />
-          Saldos de Vacaciones
+          Saldos y Antigüedad
         </button>
       </div>
 
@@ -607,172 +659,178 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
         <VacationsBalancesTable employees={employees} vacationRequests={vacationRequests} />
       ) : (
         <>
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <div>
-          <h2 className="text-2xl font-bold text-gray-800">Directorio de Personal</h2>
-          <p className="text-sm text-gray-500 mt-1">Gestión de {activeCategory === 'Todos' ? 'todo el personal' : activeCategory}</p>
-        </div>
-        
-        <div className="flex gap-2 flex-wrap">
-           <div className="flex bg-white rounded-lg border border-gray-200 p-0.5 shadow-sm">
-             <button 
-              onClick={handleExportExcel}
-              className="text-green-600 hover:bg-green-50 p-2 rounded-l-lg flex items-center transition-colors border-r"
-              title="Exportar a Excel"
-            >
-              <FileSpreadsheet className="w-5 h-5" />
-            </button>
-            <button 
-              onClick={handleExportPDF}
-              className="text-red-500 hover:bg-red-50 p-2 rounded-r-lg flex items-center transition-colors"
-              title="Exportar a PDF"
-            >
-              <FileText className="w-5 h-5" />
-            </button>
+          {/* Header & Primary Actions */}
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h2 className="text-xl font-bold text-slate-900 tracking-tight">Directorio de Personal</h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                {activeCategory === 'Todos' ? 'Todos los colaboradores registrados' : `Categoría: ${activeCategory}`} ({filteredEmployees.length} activos)
+              </p>
+            </div>
+            
+            <div className="flex gap-2 flex-wrap items-center">
+              <div className="flex bg-white rounded-lg border border-slate-200 p-0.5 shadow-xs">
+                <button 
+                  onClick={handleExportExcel}
+                  className="text-emerald-700 hover:bg-slate-50 p-2 rounded-l-md flex items-center transition-colors border-r border-slate-100"
+                  title="Exportar a Excel"
+                >
+                  <FileSpreadsheet className="w-4 h-4" />
+                </button>
+                <button 
+                  onClick={handleExportPDF}
+                  className="text-rose-600 hover:bg-slate-50 p-2 rounded-r-md flex items-center transition-colors"
+                  title="Exportar a PDF"
+                >
+                  <FileText className="w-4 h-4" />
+                </button>
+              </div>
+
+              <button 
+                onClick={() => setIsImportModalOpen(true)}
+                className="bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-3.5 py-2 rounded-lg text-xs font-semibold flex items-center transition-colors shadow-xs"
+                title="Importar desde Excel"
+              >
+                <UploadCloud className="w-4 h-4 mr-2 text-slate-500" /> Importar
+              </button>
+
+              <button 
+                onClick={() => setIsPlazaModalOpen(true)}
+                className="bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 px-3.5 py-2 rounded-lg text-xs font-semibold flex items-center transition-colors shadow-xs"
+              >
+                <Building className="w-4 h-4 mr-2 text-slate-500" /> Plazas
+              </button>
+
+              <button 
+                onClick={() => handleOpenModal()}
+                className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-2 rounded-lg text-xs font-semibold flex items-center transition-colors shadow-xs"
+              >
+                <Plus className="w-4 h-4 mr-1.5" /> Agregar Empleado
+              </button>
+            </div>
           </div>
-           <button 
-            onClick={() => setIsImportModalOpen(true)}
-            className="bg-green-600 hover:bg-green-700 text-white border border-transparent px-4 py-2 rounded-lg flex items-center transition-colors shadow-sm whitespace-nowrap"
-            title="Importar desde Excel"
-          >
-            <FileSpreadsheet className="w-5 h-5 mr-2" /> Importar
-          </button>
-           <button 
-            onClick={() => setIsPlazaModalOpen(true)}
-            className="bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 px-4 py-2 rounded-lg flex items-center transition-colors shadow-sm whitespace-nowrap"
-          >
-            <Building className="w-5 h-5 mr-2 text-gray-500" /> Gestionar Plazas
-          </button>
-          <button 
-            onClick={() => handleOpenModal()}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center transition-colors shadow-sm whitespace-nowrap"
-          >
-            <Plus className="w-5 h-5 mr-2" /> Agregar Empleado
-          </button>
-        </div>
-      </div>
 
-      {/* Control Panel: Search & Filters */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 flex flex-col md:flex-row gap-4 items-center">
-        {/* Search Input */}
-        <div className="relative flex-1 w-full">
-          <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
-          <input 
-            type="text" 
-            placeholder="Buscar por nombre, plaza, puesto o grupo..." 
-            className="w-full pl-10 pr-4 py-2.5 border rounded-lg text-sm bg-gray-50 focus:bg-white focus:ring-2 focus:ring-blue-200 focus:border-blue-400 outline-none transition-all"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          {searchTerm && (
-            <button 
-              onClick={() => setSearchTerm('')}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
-        </div>
+          {/* Search & Filters Container */}
+          <div className="bg-white p-4 rounded-xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row gap-3 items-center">
+            {/* Search Input */}
+            <div className="relative flex-1 w-full">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+              <input 
+                type="text" 
+                placeholder="Buscar por nombre, puesto, plaza o grupo..." 
+                className="w-full pl-9 pr-8 py-2 border border-slate-200 rounded-lg text-xs bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-slate-900 focus:border-slate-900 outline-none transition-all placeholder:text-slate-400"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+              {searchTerm && (
+                <button 
+                  onClick={() => setSearchTerm('')}
+                  className="absolute right-2.5 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
 
-        {/* Filters Container */}
-        <div className="flex flex-wrap gap-2 w-full md:w-auto">
-          {/* Plaza Filter */}
-          <select 
-            className="flex-1 md:w-48 p-2.5 border rounded-lg text-sm bg-white text-gray-700 focus:ring-2 focus:ring-blue-200 outline-none cursor-pointer"
-            value={selectedPlazaFilter}
-            onChange={(e) => setSelectedPlazaFilter(e.target.value)}
-          >
-            <option value="">Todas las Plazas</option>
-            {plazas.map(plaza => (
-              <option key={plaza.id} value={plaza.name}>{plaza.name}</option>
-            ))}
-          </select>
+            {/* Filters Container */}
+            <div className="flex flex-wrap gap-2 w-full md:w-auto">
+              {/* Plaza Filter */}
+              <select 
+                className="flex-1 md:w-44 px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white text-slate-700 focus:ring-2 focus:ring-slate-900 outline-none cursor-pointer"
+                value={selectedPlazaFilter}
+                onChange={(e) => setSelectedPlazaFilter(e.target.value)}
+              >
+                <option value="">Todas las Plazas</option>
+                {plazas.map(plaza => (
+                  <option key={plaza.id} value={plaza.name}>{plaza.name}</option>
+                ))}
+              </select>
 
-          {/* Supervisor Filter */}
-          <select 
-            className="flex-1 md:w-48 p-2.5 border rounded-lg text-sm bg-white text-gray-700 focus:ring-2 focus:ring-blue-200 outline-none cursor-pointer"
-            value={selectedSupervisorFilter}
-            onChange={(e) => setSelectedSupervisorFilter(e.target.value)}
-          >
-            <option value="">Todas las Supervisoras</option>
-            {availableSupervisors.map(sup => (
-              <option key={sup.id} value={sup.id}>{sup.supervisionName || `${sup.firstName} ${sup.lastName}`}</option>
-            ))}
-          </select>
+              {/* Supervisor Filter */}
+              <select 
+                className="flex-1 md:w-44 px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white text-slate-700 focus:ring-2 focus:ring-slate-900 outline-none cursor-pointer"
+                value={selectedSupervisorFilter}
+                onChange={(e) => setSelectedSupervisorFilter(e.target.value)}
+              >
+                <option value="">Todas las Supervisoras</option>
+                {availableSupervisors.map(sup => (
+                  <option key={sup.id} value={sup.id}>{sup.supervisionName || `${sup.firstName} ${sup.lastName}`}</option>
+                ))}
+              </select>
 
-          {/* Status Filter */}
-          <select 
-            className="flex-1 md:w-40 p-2.5 border rounded-lg text-sm bg-white text-gray-700 focus:ring-2 focus:ring-blue-200 outline-none cursor-pointer font-medium"
-            value={selectedStatusFilter}
-            onChange={(e) => setSelectedStatusFilter(e.target.value)}
-          >
-            <option value="">Todos los Estados</option>
-            <option value="ACTIVO">🟢 ACTIVO</option>
-            <option value="INACTIVO">🟡 INACTIVO</option>
-            <option value="BAJA">🔴 BAJA</option>
-          </select>
-          
-          {/* Clear Filters Button */}
-          {(selectedPlazaFilter || selectedSupervisorFilter || selectedStatusFilter) && (
-             <button 
-               onClick={() => { setSelectedPlazaFilter(''); setSelectedSupervisorFilter(''); setSelectedStatusFilter(''); }}
-               className="p-2.5 text-red-500 hover:bg-red-50 rounded-lg border border-transparent hover:border-red-100 transition-all"
-               title="Limpiar filtros"
-             >
-               <Filter className="w-5 h-5" />
-             </button>
-          )}
-        </div>
-      </div>
+              {/* Status Filter */}
+              <select 
+                className="flex-1 md:w-36 px-3 py-2 border border-slate-200 rounded-lg text-xs bg-white text-slate-700 focus:ring-2 focus:ring-slate-900 outline-none cursor-pointer font-medium"
+                value={selectedStatusFilter}
+                onChange={(e) => setSelectedStatusFilter(e.target.value)}
+              >
+                <option value="">Todos los Estados</option>
+                <option value="ACTIVO">ACTIVO</option>
+                <option value="INACTIVO">INACTIVO</option>
+                <option value="BAJA">BAJA</option>
+              </select>
+              
+              {/* Clear Filters Button */}
+              {(selectedPlazaFilter || selectedSupervisorFilter || selectedStatusFilter) && (
+                 <button 
+                   onClick={() => { setSelectedPlazaFilter(''); setSelectedSupervisorFilter(''); setSelectedStatusFilter(''); }}
+                   className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg border border-slate-200 transition-all text-xs flex items-center gap-1 font-medium"
+                   title="Limpiar filtros"
+                 >
+                   <X className="w-3.5 h-3.5" />
+                 </button>
+              )}
+            </div>
+          </div>
 
-      {/* Category Tabs & View Toggle */}
-      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-        <div className="flex overflow-x-auto pb-2 gap-2 no-scrollbar w-full md:w-auto">
-          <button
-            onClick={() => setActiveCategory('Todos')}
-            className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap ${
-              activeCategory === 'Todos' 
-                ? 'bg-gray-800 text-white shadow-md' 
-                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-            }`}
-          >
-            Todos ({employees.length})
-          </button>
-          {CATEGORIES.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all whitespace-nowrap flex items-center ${
-                activeCategory === cat 
-                  ? 'bg-indigo-600 text-white shadow-md' 
-                  : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-              }`}
-            >
-              {cat} 
-              <span className={`ml-2 text-xs py-0.5 px-1.5 rounded-full ${activeCategory === cat ? 'bg-white/20' : 'bg-gray-100'}`}>
-                {employees.filter(e => e.category === cat).length}
-              </span>
-            </button>
-          ))}
-        </div>
+          {/* Category Tabs & View Mode Toggle */}
+          <div className="flex flex-col md:flex-row justify-between items-center gap-3">
+            <div className="flex overflow-x-auto pb-1 gap-1.5 no-scrollbar w-full md:w-auto">
+              <button
+                onClick={() => setActiveCategory('Todos')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap ${
+                  activeCategory === 'Todos' 
+                    ? 'bg-slate-900 text-white shadow-xs' 
+                    : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                }`}
+              >
+                Todos ({employees.length})
+              </button>
+              {CATEGORIES.map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap flex items-center ${
+                    activeCategory === cat 
+                      ? 'bg-slate-900 text-white shadow-xs' 
+                      : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
+                  }`}
+                >
+                  {cat} 
+                  <span className={`ml-1.5 text-[10px] font-mono py-0.2 px-1 rounded ${activeCategory === cat ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                    {employees.filter(e => e.category === cat).length}
+                  </span>
+                </button>
+              ))}
+            </div>
 
-        <div className="flex bg-gray-100 p-1 rounded-lg border border-gray-200">
-          <button
-            onClick={() => setViewMode('table')}
-            className={`p-2 rounded-md transition-all ${viewMode === 'table' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-            title="Vista de Tabla"
-          >
-            <Table className="w-5 h-5" />
-          </button>
-          <button
-            onClick={() => setViewMode('grid')}
-            className={`p-2 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white shadow text-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-            title="Vista de Tarjetas"
-          >
-            <LayoutGrid className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
+            <div className="flex bg-slate-100 p-0.5 rounded-lg border border-slate-200 self-end md:self-auto">
+              <button
+                onClick={() => setViewMode('table')}
+                className={`p-1.5 rounded-md transition-all ${viewMode === 'table' ? 'bg-white shadow-xs text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+                title="Vista de Tabla"
+              >
+                <Table className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`p-1.5 rounded-md transition-all ${viewMode === 'grid' ? 'bg-white shadow-xs text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+                title="Vista de Tarjetas"
+              >
+                <LayoutGrid className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
 
       {isLoading ? (
         <div className="py-20 text-center bg-white rounded-xl border border-gray-100 shadow-sm">
@@ -787,99 +845,107 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
       ) : (
         <>
           {viewMode === 'grid' ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredEmployees.map(employee => (
-                <div key={employee.id} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex flex-col hover:shadow-md transition-shadow relative overflow-hidden">
+                <div key={employee.id} className="bg-white rounded-xl border border-slate-200/80 p-5 flex flex-col hover:border-slate-300 hover:shadow-xs transition-all relative overflow-hidden">
                   {/* Category Badge */}
-                  <div className={`absolute top-0 right-0 px-3 py-1 text-[10px] font-bold uppercase tracking-wider border-b border-l rounded-bl-xl ${getCategoryColor(employee.category || 'Oficina')}`}>
+                  <div className={`absolute top-0 right-0 px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-wider border-b border-l rounded-bl-lg ${getCategoryColor(employee.category || 'Oficina')}`}>
                     {employee.category || 'Oficina'}
                   </div>
 
-                  <div className="flex items-start justify-between mb-4 mt-2">
+                  <div className="flex items-start justify-between mb-3 mt-1">
                     <div className="flex items-center">
-                      <div className="w-12 h-12 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center text-xl font-bold text-gray-500 shadow-inner">
+                      <div className="w-10 h-10 bg-slate-100 border border-slate-200 rounded-xl flex items-center justify-center text-xs font-bold text-slate-700 shrink-0">
                         {(employee.firstName || '?').charAt(0)}{(employee.lastName || '?').charAt(0)}
                       </div>
-                      <div className="ml-3">
-                        <h3 className="font-bold text-gray-800 text-lg leading-tight flex items-center flex-wrap gap-1.5">
+                      <div className="ml-3 min-w-0">
+                        <h3 className="font-bold text-slate-900 text-sm leading-tight flex items-center flex-wrap gap-1.5 truncate">
                           <span>
-                            {employee.firstName || employee.lastName ? `${employee.firstName} ${employee.lastName}` : <span className="text-gray-400 italic">Sin Nombre</span>}
+                            {employee.firstName || employee.lastName ? `${employee.firstName} ${employee.lastName}` : <span className="text-slate-400 italic">Sin Nombre</span>}
                           </span>
-                          <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-full border ${
+                          <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded border uppercase ${
                             (employee.status || 'ACTIVO') === 'ACTIVO' 
                               ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
                               : (employee.status || 'ACTIVO') === 'INACTIVO'
                               ? 'bg-amber-50 border-amber-200 text-amber-700'
                               : 'bg-rose-50 border-rose-200 text-rose-700'
                           }`}>
-                            ({employee.status || 'ACTIVO'})
+                            {employee.status || 'ACTIVO'}
                           </span>
                         </h3>
-                        <span className="text-sm text-gray-500 font-medium">{employee.position || 'Sin Cargo'}</span>
+                        <span className="text-xs text-slate-500 font-medium truncate block mt-0.5">{employee.position || 'Sin Cargo'}</span>
                       </div>
                     </div>
                   </div>
                   
-                  <div className="space-y-2.5 text-sm text-gray-600 flex-1 mt-2">
-                    <div className="flex items-center p-2 bg-gray-50 rounded-lg">
-                      <MapPin className="w-4 h-4 mr-3 text-gray-400" /> 
-                      <span className="font-medium text-gray-700">{employee.plaza || 'Sin Plaza Asignada'}</span>
+                  <div className="space-y-1.5 text-xs text-slate-600 flex-1 mt-1">
+                    <div className="flex items-center p-1.5 bg-slate-50 rounded-lg border border-slate-100">
+                      <MapPin className="w-3.5 h-3.5 mr-2 text-slate-400 shrink-0" /> 
+                      <span className="font-medium text-slate-700 truncate">{employee.plaza || 'Sin Plaza Asignada'}</span>
                     </div>
                     
                     {/* Linked Info */}
                     {(employee.category === 'Supervisoras' || employee.category === 'Promotoras') && employee.linkedExecutiveId && (
-                       <div className="flex items-center p-2 bg-blue-50 rounded-lg border border-blue-100 text-blue-800">
-                        <LinkIcon className="w-3 h-3 mr-2" />
-                        <span className="text-xs">Ejecutivo: <strong>{getLinkedName(employee.linkedExecutiveId)}</strong></span>
+                       <div className="flex items-center p-1.5 bg-slate-50 rounded-lg border border-slate-200 text-slate-700">
+                        <LinkIcon className="w-3 h-3 mr-1.5 text-slate-500" />
+                        <span className="text-[11px] truncate">Ejecutivo: <strong className="text-slate-900">{getLinkedName(employee.linkedExecutiveId)}</strong></span>
                       </div>
                     )}
                     {employee.category === 'Supervisoras' && employee.supervisionName && (
-                       <div className="flex items-center p-2 bg-indigo-50 rounded-lg border border-indigo-100 text-indigo-800">
-                        <Users className="w-3 h-3 mr-2" />
-                        <span className="text-xs">Supervisión: <strong>{employee.supervisionName}</strong></span>
+                       <div className="flex items-center p-1.5 bg-slate-50 rounded-lg border border-slate-200 text-slate-700">
+                        <Users className="w-3 h-3 mr-1.5 text-slate-500" />
+                        <span className="text-[11px] truncate">Supervisión: <strong className="text-slate-900">{employee.supervisionName}</strong></span>
                       </div>
                     )}
                     {employee.category === 'Promotoras' && employee.linkedSupervisorId && (
-                       <div className="flex items-center p-2 bg-amber-50 rounded-lg border border-amber-100 text-amber-800">
-                        <LinkIcon className="w-3 h-3 mr-2" />
-                        <span className="text-xs">Sup: <strong>{getLinkedName(employee.linkedSupervisorId)}</strong></span>
+                       <div className="flex items-center p-1.5 bg-slate-50 rounded-lg border border-slate-200 text-slate-700">
+                        <LinkIcon className="w-3 h-3 mr-1.5 text-slate-500" />
+                        <span className="text-[11px] truncate">Sup: <strong className="text-slate-900">{getLinkedName(employee.linkedSupervisorId)}</strong></span>
                       </div>
                     )}
                     {employee.category === 'Promotoras' && employee.groupName && (
-                       <div className="flex items-center p-2 bg-cyan-50 rounded-lg border border-cyan-100 text-cyan-800">
-                        <Users className="w-3 h-3 mr-2" />
-                        <span className="text-xs">Grupo: <strong>{employee.groupName}</strong></span>
+                       <div className="flex items-center p-1.5 bg-slate-50 rounded-lg border border-slate-200 text-slate-700">
+                        <Users className="w-3 h-3 mr-1.5 text-slate-500" />
+                        <span className="text-[11px] truncate">Grupo: <strong className="text-slate-900">{employee.groupName}</strong></span>
                       </div>
                     )}
 
-                    <div className="flex items-center p-2 bg-gray-50 rounded-lg">
-                      <MessageSquare className="w-4 h-4 mr-3 text-emerald-500" /> 
-                      <span className="truncate text-gray-700 font-medium">{employee.email ? `Cel/WA: ${employee.email}` : 'Sin Celular / WA'}</span>
-                    </div>
-                    <div className="flex items-center p-2 bg-gray-50 rounded-lg">
-                      <Phone className="w-4 h-4 mr-3 text-gray-400" /> 
-                      <span>{employee.phone || 'N/A'}</span>
+                    <div className="flex items-center p-1.5 bg-slate-50 rounded-lg border border-slate-100">
+                      <MessageSquare className="w-3.5 h-3.5 mr-2 text-emerald-600 shrink-0" /> 
+                      <span className="truncate text-slate-700 font-mono text-[11px]">{employee.email ? `WA: ${employee.email}` : 'Sin WA'}</span>
                     </div>
                   </div>
                   
-                  <div className="mt-5 pt-4 border-t border-gray-100 flex justify-between items-center">
-                    <div className="text-xs text-gray-400 flex flex-col">
-                      <span>Ingreso: {employee.hireDate || '--/--/----'}</span>
-                    </div>
-                    <div className="flex gap-2">
+                  <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between items-center text-xs">
+                    <span className="text-[10px] text-slate-400 font-mono">Ingreso: {employee.hireDate || '--/--/----'}</span>
+                    <div className="flex gap-1">
+                      <button 
+                        onClick={(e) => handleDirectDownloadQr(employee, e)} 
+                        className="text-slate-500 hover:text-slate-900 hover:bg-slate-100 p-1.5 rounded-lg transition-colors flex items-center gap-1"
+                        title={`Descargar Código QR (${employee.firstName.toUpperCase()} ${employee.lastName.toUpperCase()}.jpg)`}
+                      >
+                        <QrCode className="w-3.5 h-3.5 text-slate-600" />
+                      </button>
+                      <button 
+                        onClick={() => setSelectedCredentialEmployee(employee)} 
+                        className="text-slate-500 hover:text-slate-900 hover:bg-slate-100 p-1.5 rounded-lg transition-colors flex items-center gap-1"
+                        title="Ver Credencial Virtual"
+                      >
+                        <CreditCard className="w-3.5 h-3.5" />
+                      </button>
                       <button 
                         onClick={() => handleOpenModal(employee)} 
-                        className="text-gray-300 hover:text-blue-500 transition-colors p-2 hover:bg-blue-50 rounded-full"
+                        className="text-slate-400 hover:text-slate-900 hover:bg-slate-100 p-1.5 rounded-lg transition-colors"
                         title="Editar"
                       >
-                        <Pencil className="w-5 h-5" />
+                        <Pencil className="w-3.5 h-3.5" />
                       </button>
                       <button 
                         onClick={() => handleDelete(employee.id)} 
-                        className="text-gray-300 hover:text-red-500 transition-colors p-2 hover:bg-red-50 rounded-full"
+                        className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 p-1.5 rounded-lg transition-colors"
                         title="Eliminar"
                       >
-                        <Trash2 className="w-5 h-5" />
+                        <Trash2 className="w-3.5 h-3.5" />
                       </button>
                     </div>
                   </div>
@@ -887,123 +953,137 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
               ))}
             </div>
           ) : (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-white rounded-xl border border-slate-200/80 shadow-xs overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="bg-gray-50 border-b border-gray-200 text-xs uppercase text-gray-500 font-semibold tracking-wider">
-                      <th className="p-4">Nombre</th>
-                      <th className="p-4">Puesto / Categoría</th>
-                      <th className="p-4">Plaza</th>
-                      <th className="p-4">
+                    <tr className="bg-slate-50 border-b border-slate-200 text-[11px] uppercase text-slate-500 font-semibold tracking-wider">
+                      <th className="py-3 px-4">Colaborador</th>
+                      <th className="py-3 px-4">Puesto / Categoría</th>
+                      <th className="py-3 px-4">Plaza</th>
+                      <th className="py-3 px-4">
                         {(activeCategory === 'Promotoras' || activeCategory === 'Supervisoras') ? 'Cumpleaños' : 'Contacto'}
                       </th>
-                      <th className="p-4">Vinculación</th>
-                      <th className="p-4">Fecha Ingreso</th>
-                      <th className="p-4 text-right">Acciones</th>
+                      <th className="py-3 px-4">Vinculación</th>
+                      <th className="py-3 px-4">Fecha Ingreso</th>
+                      <th className="py-3 px-4 text-right">Acciones</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody className="divide-y divide-slate-100 text-xs">
                     {filteredEmployees.map(employee => (
-                      <tr key={employee.id} className="hover:bg-blue-50/50 transition-colors group">
-                        <td className="p-4">
+                      <tr key={employee.id} className="hover:bg-slate-50/80 transition-colors group">
+                        <td className="py-3 px-4">
                           <div className="flex items-center">
-                            <div className="w-8 h-8 bg-gray-100 rounded-full flex items-center justify-center text-xs font-bold text-gray-500 mr-3">
+                            <div className="w-7 h-7 bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-center text-[10px] font-bold text-slate-700 mr-2.5 shrink-0">
                               {(employee.firstName || '?').charAt(0)}{(employee.lastName || '?').charAt(0)}
                             </div>
-                            <div>
+                            <div className="min-w-0">
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <p className="font-bold text-gray-800 text-sm">{employee.firstName} {employee.lastName}</p>
-                                <span className={`text-[9px] font-extrabold px-1.5 py-0.2 rounded-full border ${
+                                <p className="font-semibold text-slate-900 truncate">{employee.firstName} {employee.lastName}</p>
+                                <span className={`text-[8px] font-bold px-1.5 py-0.2 rounded border uppercase ${
                                   (employee.status || 'ACTIVO') === 'ACTIVO' 
                                     ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
                                     : (employee.status || 'ACTIVO') === 'INACTIVO'
                                     ? 'bg-amber-50 border-amber-200 text-amber-700'
                                     : 'bg-rose-50 border-rose-200 text-rose-700'
                                 }`}>
-                                  ({employee.status || 'ACTIVO'})
+                                  {employee.status || 'ACTIVO'}
                                 </span>
                               </div>
-                              {employee.groupName && <span className="text-[10px] bg-cyan-100 text-cyan-700 px-1.5 py-0.5 rounded-full">{employee.groupName}</span>}
+                              {employee.groupName && <span className="text-[9px] bg-slate-100 text-slate-600 px-1 py-0.2 rounded font-mono">{employee.groupName}</span>}
                             </div>
                           </div>
                         </td>
-                        <td className="p-4">
+                        <td className="py-3 px-4">
                           <div className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-700">{employee.position || 'Sin Cargo'}</span>
-                            <span className={`text-[10px] px-2 py-0.5 rounded-full w-fit mt-1 ${getCategoryColor(employee.category || 'Oficina')}`}>
+                            <span className="font-medium text-slate-800">{employee.position || 'Sin Cargo'}</span>
+                            <span className={`text-[9px] font-semibold px-1.5 py-0.2 rounded w-fit mt-0.5 ${getCategoryColor(employee.category || 'Oficina')}`}>
                               {employee.category}
                             </span>
                           </div>
                         </td>
-                        <td className="p-4">
-                          <span className="text-sm text-gray-600 flex items-center">
-                            <MapPin className="w-3 h-3 mr-1 text-gray-400" />
+                        <td className="py-3 px-4">
+                          <span className="text-slate-600 flex items-center">
+                            <MapPin className="w-3 h-3 mr-1 text-slate-400" />
                             {employee.plaza || '-'}
                           </span>
                         </td>
-                        <td className="p-4">
+                        <td className="py-3 px-4">
                           {(activeCategory === 'Promotoras' || activeCategory === 'Supervisoras') ? (
-                            <div className="flex items-center text-sm text-gray-600">
-                              <Cake className="w-4 h-4 mr-2 text-pink-500" />
+                            <div className="flex items-center text-slate-600 font-mono">
+                              <Cake className="w-3 h-3 mr-1.5 text-slate-400" />
                               {employee.birthDate ? (
                                 <span>{employee.birthDate.split('-').reverse().join('/')}</span>
                               ) : (
-                                <span className="text-gray-400 text-xs">N/A</span>
+                                <span className="text-slate-400 text-xs">-</span>
                               )}
                             </div>
                           ) : (
-                            <div className="flex flex-col text-xs text-gray-500 space-y-1">
+                            <div className="flex flex-col text-[11px] text-slate-500 space-y-0.5 font-mono">
                               {employee.email && (
-                                <span className="flex items-center text-gray-700 font-medium" title="Celular / WhatsApp">
-                                  <MessageSquare className="w-3 h-3 mr-1 text-emerald-500" /> {employee.email}
+                                <span className="flex items-center text-slate-700 font-medium" title="Celular / WhatsApp">
+                                  <MessageSquare className="w-3 h-3 mr-1 text-emerald-600" /> {employee.email}
                                 </span>
                               )}
                               {employee.phone && (
-                                <span className="flex items-center">
+                                <span className="flex items-center text-slate-400">
                                   <Phone className="w-3 h-3 mr-1" /> {employee.phone}
                                 </span>
                               )}
                             </div>
                           )}
                         </td>
-                        <td className="p-4 text-xs">
-                          <div className="space-y-1">
+                        <td className="py-3 px-4 text-[11px]">
+                          <div className="space-y-0.5">
                             {employee.linkedExecutiveId && (
-                              <div className="text-blue-600 flex items-center" title="Ejecutivo Vinculado">
-                                <LinkIcon className="w-3 h-3 mr-1" /> {getLinkedName(employee.linkedExecutiveId)}
+                              <div className="text-slate-700 flex items-center" title="Ejecutivo Vinculado">
+                                <LinkIcon className="w-3 h-3 mr-1 text-slate-400" /> {getLinkedName(employee.linkedExecutiveId)}
                               </div>
                             )}
                             {employee.linkedSupervisorId && (
-                              <div className="text-amber-600 flex items-center" title="Supervisora Vinculada">
-                                <Users className="w-3 h-3 mr-1" /> {getLinkedName(employee.linkedSupervisorId)}
+                              <div className="text-slate-700 flex items-center" title="Supervisora Vinculada">
+                                <Users className="w-3 h-3 mr-1 text-slate-400" /> {getLinkedName(employee.linkedSupervisorId)}
                               </div>
                             )}
                             {employee.supervisionName && (
-                              <div className="text-indigo-600 flex items-center" title="Nombre Supervisión">
-                                <Users className="w-3 h-3 mr-1" /> {employee.supervisionName}
+                              <div className="text-slate-700 flex items-center" title="Nombre Supervisión">
+                                <Users className="w-3 h-3 mr-1 text-slate-400" /> {employee.supervisionName}
                               </div>
                             )}
                           </div>
                         </td>
-                        <td className="p-4 text-sm text-gray-500">
+                        <td className="py-3 px-4 text-slate-500 font-mono">
                           {employee.hireDate || '-'}
                         </td>
-                        <td className="p-4 text-right">
-                          <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <td className="py-3 px-4 text-right">
+                          <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button 
+                              onClick={(e) => handleDirectDownloadQr(employee, e)} 
+                              className="text-slate-500 hover:text-slate-900 p-1 hover:bg-slate-100 rounded-md transition-colors"
+                              title={`Descargar Código QR (${employee.firstName.toUpperCase()} ${employee.lastName.toUpperCase()}.jpg)`}
+                            >
+                              <QrCode className="w-3.5 h-3.5 text-slate-600" />
+                            </button>
+                            <button 
+                              onClick={() => setSelectedCredentialEmployee(employee)} 
+                              className="text-slate-500 hover:text-slate-900 p-1 hover:bg-slate-100 rounded-md transition-colors"
+                              title="Ver Credencial Virtual"
+                            >
+                              <CreditCard className="w-3.5 h-3.5" />
+                            </button>
                             <button 
                               onClick={() => handleOpenModal(employee)} 
-                              className="text-gray-400 hover:text-blue-600 p-1 hover:bg-blue-50 rounded"
+                              className="text-slate-400 hover:text-slate-900 p-1 hover:bg-slate-100 rounded-md transition-colors"
                               title="Editar"
                             >
-                              <Pencil className="w-4 h-4" />
+                              <Pencil className="w-3.5 h-3.5" />
                             </button>
                             <button 
                               onClick={() => handleDelete(employee.id)} 
-                              className="text-gray-400 hover:text-red-600 p-1 hover:bg-red-50 rounded"
+                              className="text-slate-400 hover:text-rose-600 p-1 hover:bg-rose-50 rounded-md transition-colors"
                               title="Eliminar"
                             >
-                              <Trash2 className="w-4 h-4" />
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>
                         </td>
@@ -1266,34 +1346,34 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
 
       {/* EMPLOYEE MODAL */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl w-full max-w-3xl shadow-2xl max-h-[92vh] flex flex-col overflow-hidden border border-gray-100">
+        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-50 p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-2xl w-full max-w-3xl shadow-xl max-h-[92vh] flex flex-col overflow-hidden border border-slate-200">
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-indigo-700 to-indigo-600 px-6 py-4.5 text-white flex items-center justify-between shrink-0 shadow-sm">
+            <div className="bg-slate-900 px-6 py-4 text-white flex items-center justify-between shrink-0">
               <div className="flex items-center gap-2.5">
-                <User className="w-5.5 h-5.5 text-indigo-100" />
+                <User className="w-5 h-5 text-slate-300" />
                 <div>
-                  <h3 className="text-lg font-bold tracking-tight">
+                  <h3 className="text-base font-bold tracking-tight">
                     {editingId ? 'Editar Colaborador' : 'Registrar Nuevo Colaborador'}
                   </h3>
-                  <p className="text-xs text-indigo-100/80">Completa la información del personal para el sistema.</p>
+                  <p className="text-xs text-slate-400">Completa la información del personal para el sistema.</p>
                 </div>
               </div>
               <button 
                 type="button"
                 onClick={() => setIsModalOpen(false)}
-                className="text-white/80 hover:text-white bg-white/10 hover:bg-white/25 p-2 rounded-full transition-all text-xs w-8 h-8 flex items-center justify-center font-bold"
+                className="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-1.5 rounded-lg transition-all text-xs w-7 h-7 flex items-center justify-center font-bold"
               >
                 ✕
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-5 bg-gray-50/50">
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-4 bg-slate-50/50">
               
               {/* Category Selector */}
-              <div className="bg-white p-4 rounded-xl border border-gray-150 shadow-sm">
-                <label className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-2.5 block">Categoría de Personal</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 bg-gray-50 p-1.5 rounded-xl border border-gray-200">
+              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
+                <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2 block">Categoría de Personal</label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50 p-1 rounded-lg border border-slate-200">
                   {CATEGORIES.map(cat => {
                     const isSelected = formData.category === cat;
                     return (
@@ -1301,16 +1381,16 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
                         key={cat}
                         type="button"
                         onClick={() => setFormData({...formData, category: cat})}
-                        className={`py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-2 ${
+                        className={`py-1.5 px-3 rounded-md text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
                           isSelected 
-                            ? 'bg-white text-indigo-600 shadow-sm border border-indigo-100' 
-                            : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100/50 border border-transparent'
+                            ? 'bg-white text-slate-900 shadow-xs border border-slate-200' 
+                            : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-transparent'
                         }`}
                       >
-                        {cat === 'Oficina' && <Building className="w-4 h-4" />}
-                        {cat === 'Ejecutivos' && <User className="w-4 h-4" />}
-                        {cat === 'Supervisoras' && <Users className="w-4 h-4" />}
-                        {cat === 'Promotoras' && <Layers className="w-4 h-4" />}
+                        {cat === 'Oficina' && <Building className="w-3.5 h-3.5" />}
+                        {cat === 'Ejecutivos' && <User className="w-3.5 h-3.5" />}
+                        {cat === 'Supervisoras' && <Users className="w-3.5 h-3.5" />}
+                        {cat === 'Promotoras' && <Layers className="w-3.5 h-3.5" />}
                         <span>{cat}</span>
                       </button>
                     );
@@ -1527,6 +1607,95 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
                     </div>
                   </div>
 
+                  {/* CURP */}
+                  <div className="relative">
+                    <label className="text-xs font-bold text-slate-700 mb-1 block">CURP (18 caracteres)</label>
+                    <div className="relative">
+                      <CreditCard className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                      <input 
+                        type="text"
+                        maxLength={18}
+                        placeholder="AAAA000000XXXXXX00" 
+                        className="pl-10 pr-3 py-2.5 w-full border border-slate-200 rounded-xl bg-white text-slate-900 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 transition-all shadow-sm font-mono uppercase" 
+                        value={formData.curp || ''} 
+                        onChange={e => setFormData(prev => ({...prev, curp: e.target.value.toUpperCase()}))} 
+                      />
+                    </div>
+                  </div>
+
+                  {/* Foto del Colaborador */}
+                  <div className="relative md:col-span-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
+                    <label className="text-xs font-bold text-slate-700 mb-1.5 block">Fotografía del Colaborador</label>
+                    <p className="text-[10px] text-slate-400 mb-2.5">Se utilizará en la credencial virtual, gafete y certificado oficial.</p>
+                    
+                    <div className="flex flex-col sm:flex-row gap-3 items-center">
+                      <label className="flex-1 w-full cursor-pointer bg-white hover:bg-slate-50 border border-dashed border-slate-300 hover:border-slate-400 rounded-xl p-3 flex items-center justify-center gap-2 transition-colors">
+                        <Upload className="w-4 h-4 text-slate-500" />
+                        <span className="text-xs font-semibold text-slate-700">Subir Fotografía</span>
+                        <input 
+                          type="file" 
+                          accept="image/*" 
+                          className="hidden" 
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onload = (readerEvt) => {
+                                const img = new Image();
+                                img.onload = () => {
+                                  const canvas = document.createElement('canvas');
+                                  let width = img.width;
+                                  let height = img.height;
+                                  const maxDim = 400;
+                                  if (width > maxDim || height > maxDim) {
+                                    if (width > height) {
+                                      height = Math.round((height * maxDim) / width);
+                                      width = maxDim;
+                                    } else {
+                                      width = Math.round((width * maxDim) / height);
+                                      height = maxDim;
+                                    }
+                                  }
+                                  canvas.width = width;
+                                  canvas.height = height;
+                                  const ctx = canvas.getContext('2d');
+                                  ctx?.drawImage(img, 0, 0, width, height);
+                                  const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+                                  setFormData(prev => ({...prev, photoUrl: compressedDataUrl}));
+                                };
+                                img.src = readerEvt.target?.result as string;
+                              };
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                        />
+                      </label>
+
+                      {formData.photoUrl ? (
+                        <div className="relative group shrink-0 w-16 h-16 rounded-xl border border-slate-200 overflow-hidden bg-white">
+                          <img 
+                            src={formData.photoUrl} 
+                            alt="Preview" 
+                            className="w-full h-full object-cover" 
+                          />
+                          <button 
+                            type="button" 
+                            onClick={() => setFormData(prev => ({...prev, photoUrl: ''}))}
+                            className="absolute top-1 right-1 bg-rose-600 text-white p-0.5 rounded-full shadow-xs hover:bg-rose-700"
+                            title="Quitar foto"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="shrink-0 w-16 h-16 rounded-xl border border-slate-200 bg-white flex flex-col items-center justify-center text-slate-400">
+                          <User className="w-5 h-5 opacity-40" />
+                          <span className="text-[8px]">Sin Foto</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Fecha Contratación */}
                   <div className="relative">
                     <label className="text-xs font-bold text-gray-600 mb-1 block">Fecha Contratación</label>
@@ -1583,26 +1752,26 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
               </div>
 
               {/* Action Buttons */}
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 shrink-0">
+              <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-200 shrink-0">
                 <button 
                   type="button" 
                   onClick={() => setIsModalOpen(false)} 
-                  className="px-5 py-2.5 border border-gray-300 rounded-xl text-xs font-bold text-gray-700 bg-white hover:bg-gray-100 hover:text-gray-900 transition-all shadow-sm"
+                  className="px-4 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition-colors shadow-2xs"
                 >
                   Cancelar
                 </button>
                 <button 
                   type="submit" 
                   disabled={loading} 
-                  className="px-6 py-2.5 bg-gradient-to-r from-indigo-700 to-indigo-600 text-white rounded-xl text-xs font-bold hover:shadow-md active:scale-95 disabled:opacity-50 transition-all flex items-center gap-1.5 cursor-pointer shadow-sm"
+                  className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-xs active:scale-[0.99] disabled:opacity-50 transition-colors flex items-center gap-1.5 cursor-pointer"
                 >
                   {loading ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" /> Guardando...
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Guardando...
                     </>
                   ) : (
                     <>
-                      <Check className="w-4 h-4" /> {editingId ? 'Guardar Cambios' : 'Registrar Colaborador'}
+                      <Check className="w-3.5 h-3.5" /> {editingId ? 'Guardar Cambios' : 'Registrar Colaborador'}
                     </>
                   )}
                 </button>
@@ -1610,6 +1779,16 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
             </form>
           </div>
         </div>
+      )}
+
+      {/* VIRTUAL CREDENTIAL MODAL */}
+      {selectedCredentialEmployee && (
+        <VirtualCredentialModal 
+          employee={selectedCredentialEmployee}
+          companyName={companyName || 'Mi Oficina'}
+          companyLogoUrl={companyLogoUrl}
+          onClose={() => setSelectedCredentialEmployee(null)}
+        />
       )}
     </div>
   );

@@ -756,39 +756,39 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
   return (
     <div className="space-y-6">
       {/* Calendario Semanal de Permisos */}
-      <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-5">
+      <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-xs">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
           <div>
-            <h4 className="font-extrabold text-gray-800 text-lg">Calendario Semanal de Permisos</h4>
-            <p className="text-xs text-gray-500">{formatWeekRange(currentWeekMonday)}</p>
+            <h4 className="font-bold text-slate-900 text-sm tracking-tight">Calendario Semanal de Permisos</h4>
+            <p className="text-xs text-slate-500">{formatWeekRange(currentWeekMonday)}</p>
           </div>
           
-          <div className="flex items-center gap-2 bg-gray-50 p-1.5 rounded-xl border border-gray-100 w-full md:w-auto justify-between md:justify-start">
+          <div className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-lg border border-slate-200 w-full sm:w-auto justify-between sm:justify-start">
             <button
               onClick={handlePrevWeek}
-              className="p-1.5 hover:bg-white rounded-lg text-gray-600 hover:text-indigo-600 transition-all hover:shadow-sm"
+              className="p-1 hover:bg-white rounded text-slate-600 hover:text-slate-900 transition-colors"
               title="Semana Anterior"
             >
-              <ChevronLeft className="w-5 h-5" />
+              <ChevronLeft className="w-4 h-4" />
             </button>
             <button
               onClick={handleCurrentWeek}
-              className="px-4 py-1.5 bg-white hover:bg-gray-50 text-indigo-600 font-extrabold text-xs rounded-lg transition-all shadow-sm border border-gray-100"
+              className="px-3 py-1 bg-white hover:bg-slate-50 text-slate-800 font-semibold text-xs rounded transition-colors shadow-2xs border border-slate-200"
             >
               Actual
             </button>
             <button
               onClick={handleNextWeek}
-              className="p-1.5 hover:bg-white rounded-lg text-gray-600 hover:text-indigo-600 transition-all hover:shadow-sm"
+              className="p-1 hover:bg-white rounded text-slate-600 hover:text-slate-900 transition-colors"
               title="Siguiente Semana"
             >
-              <ChevronRight className="w-5 h-5" />
+              <ChevronRight className="w-4 h-4" />
             </button>
           </div>
         </div>
 
         {/* 7 Days Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-7 gap-2.5">
           {weekDays.map((day, idx) => {
             const dateStr = formatDateLocal(day);
             // Filter requests that overlap with this date
@@ -802,41 +802,41 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
             return (
               <div
                 key={dateStr}
-                className={`p-3.5 rounded-xl border transition-all flex flex-col min-h-[140px] ${
+                className={`p-3 rounded-lg border transition-all flex flex-col min-h-[130px] ${
                   isToday 
-                    ? 'bg-indigo-50/30 border-indigo-200 ring-2 ring-indigo-600/10' 
-                    : 'bg-gray-50/30 border-gray-100 hover:border-gray-200'
+                    ? 'bg-slate-50 border-slate-900/40 ring-1 ring-slate-900/20' 
+                    : 'bg-slate-50/50 border-slate-200/80 hover:border-slate-300'
                 }`}
               >
                 <div className="flex items-center justify-between mb-2">
-                  <span className={`text-[11px] font-extrabold uppercase ${isToday ? 'text-indigo-600' : 'text-gray-400'}`}>
+                  <span className={`text-[10px] font-bold uppercase tracking-wider ${isToday ? 'text-slate-900' : 'text-slate-400'}`}>
                     {DAY_NAMES[idx]}
                   </span>
-                  <span className={`text-xs px-2 py-0.5 rounded-md font-black ${
-                    isToday ? 'bg-indigo-600 text-white shadow-sm' : 'text-gray-700 bg-gray-100/60'
+                  <span className={`text-xs px-1.5 py-0.2 rounded font-mono font-bold ${
+                    isToday ? 'bg-slate-900 text-white' : 'text-slate-600 bg-slate-200/60'
                   }`}>
                     {day.getDate()}
                   </span>
                 </div>
 
-                <div className="flex-1 space-y-1.5 overflow-y-auto no-scrollbar max-h-[120px]">
+                <div className="flex-1 space-y-1 overflow-y-auto no-scrollbar max-h-[110px]">
                   {dayRequests.length > 0 ? (
                     dayRequests.map(req => (
                       <div
                         key={req.id}
-                        className={`p-2 rounded-lg border text-[10px] flex flex-col gap-0.5 transition-all shadow-sm ${
+                        className={`p-1.5 rounded border text-[10px] flex flex-col gap-0.5 transition-all ${
                           req.status === 'APROBADA'
                             ? req.type === 'disponibles'
-                              ? 'bg-indigo-50/50 border-indigo-100 text-indigo-900'
-                              : 'bg-emerald-50/50 border-emerald-100 text-emerald-900'
-                            : 'bg-amber-50/50 border-amber-100 text-amber-900'
+                              ? 'bg-white border-slate-200 text-slate-900 shadow-2xs'
+                              : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+                            : 'bg-amber-50 border-amber-200 text-amber-900'
                         }`}
                         title={`${req.employeeName} (${req.employeeCategory})\nPeriodo: ${req.startDate} al ${req.endDate}\nModo: ${req.type === 'disponibles' ? 'Días Disponibles' : 'Descuento'}`}
                       >
-                        <span className="font-extrabold truncate block">
+                        <span className="font-semibold truncate block">
                           {req.employeeName}
                         </span>
-                        <div className="flex items-center justify-between mt-0.5 text-[8px] font-medium opacity-80">
+                        <div className="flex items-center justify-between text-[8px] font-medium opacity-75">
                           <span>{req.type === 'disponibles' ? 'Vacaciones' : 'Descuento'}</span>
                           <span>{req.status === 'PENDIENTE' ? 'Pend.' : 'Aprob.'}</span>
                         </div>
@@ -844,7 +844,7 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
                     ))
                   ) : (
                     <div className="h-full flex items-center justify-center py-4">
-                      <span className="text-[9px] text-gray-300 font-bold tracking-wider uppercase">Sin Permisos</span>
+                      <span className="text-[9px] text-slate-300 font-medium tracking-wider uppercase">Sin Permisos</span>
                     </div>
                   )}
                 </div>
@@ -855,17 +855,17 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
       </div>
 
       {/* Main Section: History List (Full-Width) */}
-      <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col min-h-[600px]">
+      <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-xs flex flex-col min-h-[500px]">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-3">
           <div>
-            <h3 className="font-extrabold text-gray-800 text-lg">Historial de Solicitudes</h3>
-            <p className="text-xs text-gray-500">Revisión y autorización de periodos solicitados</p>
+            <h3 className="font-bold text-slate-900 text-base tracking-tight">Historial de Solicitudes</h3>
+            <p className="text-xs text-slate-500">Revisión y autorización de periodos solicitados</p>
           </div>
 
           {/* Filters & Actions */}
           <div className="flex flex-wrap gap-2 w-full sm:w-auto items-center">
             <select
-              className="p-1.5 border border-gray-200 rounded-lg text-xs bg-white cursor-pointer focus:ring-1 focus:ring-indigo-500 outline-none"
+              className="py-1.5 px-3 border border-slate-200 rounded-lg text-xs bg-white text-slate-700 cursor-pointer focus:ring-2 focus:ring-slate-900 outline-none"
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value as any)}
             >
@@ -876,7 +876,7 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
             </select>
 
             <select
-              className="p-1.5 border border-gray-200 rounded-lg text-xs bg-white cursor-pointer focus:ring-1 focus:ring-indigo-500 outline-none"
+              className="py-1.5 px-3 border border-slate-200 rounded-lg text-xs bg-white text-slate-700 cursor-pointer focus:ring-2 focus:ring-slate-900 outline-none"
               value={typeFilter}
               onChange={(e) => setTypeFilter(e.target.value as any)}
             >
@@ -890,7 +890,7 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
                 setSelectedEmpId('');
                 setIsModalOpen(true);
               }}
-              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold px-4 py-2 rounded-lg transition-all shadow-sm"
+              className="bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold px-3.5 py-1.5 rounded-lg transition-colors shadow-xs"
             >
               Registrar Solicitud
             </button>
@@ -898,26 +898,26 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
         </div>
 
         {/* History Table */}
-        <div className="flex-1 overflow-auto border border-gray-100 rounded-xl">
+        <div className="flex-1 overflow-auto border border-slate-200 rounded-xl">
           {activeRequests.length > 0 ? (
             <table className="w-full text-left border-collapse text-xs">
               <thead>
-                <tr className="bg-gray-50 text-gray-500 font-bold uppercase tracking-wider border-b border-gray-100">
-                  <th className="p-3">Empleado</th>
-                  <th className="p-3">Fecha Permiso</th>
-                  <th className="p-3">Fecha de Regreso</th>
-                  <th className="p-3 text-center">Días</th>
-                  <th className="p-3">Autorizado por:</th>
-                  <th className="p-3 text-right">Acciones</th>
+                <tr className="bg-slate-50 text-slate-500 font-semibold uppercase tracking-wider text-[11px] border-b border-slate-200">
+                  <th className="py-3 px-4">Empleado</th>
+                  <th className="py-3 px-4">Fecha Permiso</th>
+                  <th className="py-3 px-4">Fecha de Regreso</th>
+                  <th className="py-3 px-4 text-center">Días</th>
+                  <th className="py-3 px-4">Autorizado por</th>
+                  <th className="py-3 px-4 text-right">Acciones</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 text-gray-700">
+              <tbody className="divide-y divide-slate-100 text-slate-700">
                 {activeRequests.map((req) => (
-                  <tr key={req.id} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="p-3">
+                  <tr key={req.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="py-3 px-4">
                       <div>
-                        <p className="font-extrabold text-gray-900 flex items-center">
-                          <span className="text-gray-500 font-mono text-[10px] mr-1">#{req.folio || Math.floor(100000 + (req.createdAt ? new Date(req.createdAt).getTime() % 900000 : Math.random() * 900000))}</span>
+                        <p className="font-semibold text-slate-900 flex items-center">
+                          <span className="text-slate-400 font-mono text-[10px] mr-1">#{req.folio || Math.floor(100000 + (req.createdAt ? new Date(req.createdAt).getTime() % 900000 : Math.random() * 900000))}</span>
                           <button
                             type="button"
                             onClick={() => {
@@ -927,26 +927,26 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
                                 setIsDetailsModalOpen(true);
                               }
                             }}
-                            className="hover:text-indigo-600 hover:underline transition-all focus:outline-none text-left"
+                            className="hover:text-slate-900 hover:underline transition-all focus:outline-none text-left"
                           >
                             {req.employeeName}
                           </button>
                         </p>
-                        <p className="text-[10px] text-gray-400">{req.employeeCategory}</p>
+                        <p className="text-[10px] text-slate-400">{req.employeeCategory}</p>
                       </div>
                     </td>
-                    <td className="p-3">
+                    <td className="py-3 px-4">
                       <div className="flex flex-col">
-                        <span className="font-medium text-gray-700">{formatDateToDDMMAA(req.startDate)} al {formatDateToDDMMAA(req.endDate)}</span>
-                        <span className={`text-[10px] font-bold ${
-                          req.type === 'disponibles' ? 'text-indigo-600' : 'text-emerald-600'
+                        <span className="font-mono text-slate-800 text-[11px]">{formatDateToDDMMAA(req.startDate)} al {formatDateToDDMMAA(req.endDate)}</span>
+                        <span className={`text-[10px] font-semibold mt-0.5 ${
+                          req.type === 'disponibles' ? 'text-slate-600' : 'text-emerald-700'
                         }`}>
                           {req.type === 'disponibles' ? 'Días Disponibles' : 'Descuento Nómina'}
                         </span>
                       </div>
                     </td>
-                    <td className="p-3">
-                      <span className="font-semibold text-gray-800">{formatDateToDDMMAA(calculateReturnDate(req.endDate))}</span>
+                    <td className="py-3 px-4">
+                      <span className="font-mono text-slate-800 font-semibold text-[11px]">{formatDateToDDMMAA(calculateReturnDate(req.endDate))}</span>
                     </td>
                     <td className="p-3 text-center font-black text-gray-800">
                       {req.totalDays}

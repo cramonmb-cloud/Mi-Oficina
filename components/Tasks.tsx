@@ -132,98 +132,114 @@ export const Tasks: React.FC<TasksProps> = ({ tasks, employees, isLoading }) => 
     const tasksInColumn = filteredTasks.filter(t => t.status === status);
     
     return (
-      <div className="flex-1 min-w-[300px] bg-gray-50 rounded-xl p-4 flex flex-col h-full">
-        <div className={`flex items-center mb-4 pb-2 border-b-2 ${colorClass}`}>
-          <Icon className="w-5 h-5 mr-2 opacity-70" />
-          <h3 className="font-bold text-gray-700">{title}</h3>
-          <span className="ml-auto bg-white px-2 py-0.5 rounded text-xs font-bold shadow-sm">
+      <div className="flex-1 min-w-[280px] sm:min-w-[320px] bg-slate-100/70 border border-slate-200/80 rounded-xl p-4 flex flex-col h-full">
+        <div className={`flex items-center mb-3 pb-2.5 border-b ${colorClass}`}>
+          <Icon className="w-4 h-4 mr-2 text-slate-700" />
+          <h3 className="font-bold text-xs uppercase tracking-wider text-slate-800">{title}</h3>
+          <span className="ml-auto bg-white border border-slate-200 text-slate-700 px-2 py-0.5 rounded-full text-xs font-mono font-bold shadow-2xs">
             {tasksInColumn.length}
           </span>
         </div>
         
-        <div className="space-y-3 overflow-y-auto flex-1 pr-1 custom-scrollbar">
+        <div className="space-y-2.5 overflow-y-auto flex-1 pr-1 custom-scrollbar">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center py-10">
-              <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600 mb-2"></div>
-              <span className="text-xs text-gray-400">Cargando...</span>
+              <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-slate-900 mb-2"></div>
+              <span className="text-xs text-slate-400">Cargando tareas...</span>
             </div>
           ) : tasksInColumn.length === 0 ? (
-            <div className="text-center py-10 text-gray-400 text-sm italic">
-              No hay tareas
+            <div className="text-center py-10 text-slate-400 text-xs font-medium border border-dashed border-slate-200 rounded-lg bg-white/40">
+              Sin tareas en esta etapa
             </div>
           ) : (
             tasksInColumn.map(task => (
-              <div key={task.id} className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition-all group">
+              <div key={task.id} className="bg-white p-4 rounded-xl border border-slate-200/90 shadow-xs hover:border-slate-300 hover:shadow-sm transition-all group">
                 <div className="flex justify-between items-start mb-2">
-                  <span className={`text-[10px] px-2 py-0.5 rounded border uppercase font-bold tracking-wide ${getPriorityColor(task.priority)}`}>
+                  <span className={`text-[10px] px-2 py-0.5 rounded-md border uppercase font-bold tracking-wide ${getPriorityColor(task.priority)}`}>
                     {task.priority}
                   </span>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button 
                       onClick={() => handleOpenModal(task)} 
-                      className="text-gray-300 hover:text-blue-500 hover:bg-blue-50 rounded p-1"
+                      className="text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded p-1 transition-colors"
                       title="Editar"
                     >
-                      <Pencil className="w-4 h-4" />
+                      <Pencil className="w-3.5 h-3.5" />
                     </button>
                     <button 
-                      onClick={() => { if(confirm('¿Eliminar?')) { deleteTask(task.id); }}} 
-                      className="text-gray-300 hover:text-red-500 hover:bg-red-50 rounded p-1"
+                      onClick={() => { if(confirm('¿Eliminar esta tarea?')) { deleteTask(task.id); }}} 
+                      className="text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded p-1 transition-colors"
                       title="Eliminar"
                     >
-                      <Trash2 className="w-4 h-4" />
+                      <Trash2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
                 
-                <h4 className="font-bold text-gray-800 mb-1">{task.title}</h4>
-                <p className="text-xs text-gray-500 mb-3 line-clamp-2">{task.description}</p>
+                <h4 className="font-semibold text-xs text-slate-900 mb-1 leading-snug">{task.title}</h4>
+                {task.description && (
+                  <p className="text-[11px] text-slate-500 mb-3 line-clamp-2 leading-relaxed">{task.description}</p>
+                )}
                 
                 {/* Files Section */}
                 {(task.attachmentUrl || task.deliveryUrl) && (
-                  <div className="flex gap-2 mb-3">
+                  <div className="flex gap-1.5 mb-3 flex-wrap">
                     {task.attachmentUrl && (
                       <a 
                         href={task.attachmentUrl} 
                         download={`adjunto-${task.id}`}
-                        className="text-[10px] flex items-center bg-gray-100 px-2 py-1 rounded text-gray-600 hover:bg-gray-200"
+                        className="text-[10px] font-medium flex items-center bg-slate-100 px-2 py-0.5 rounded text-slate-700 hover:bg-slate-200 border border-slate-200"
                         title="Descargar Adjunto"
                       >
-                        <Paperclip className="w-3 h-3 mr-1" /> Adjunto
+                        <Paperclip className="w-3 h-3 mr-1 text-slate-500" /> Adjunto
                       </a>
                     )}
                     {task.deliveryUrl && (
                       <a 
                         href={task.deliveryUrl} 
                         download={`entrega-${task.id}`}
-                        className="text-[10px] flex items-center bg-green-50 px-2 py-1 rounded text-green-600 hover:bg-green-100"
+                        className="text-[10px] font-medium flex items-center bg-emerald-50 px-2 py-0.5 rounded text-emerald-700 hover:bg-emerald-100 border border-emerald-200"
                         title="Descargar Entrega"
                       >
-                        <FileText className="w-3 h-3 mr-1" /> Entrega
+                        <FileText className="w-3 h-3 mr-1 text-emerald-600" /> Entrega
                       </a>
                     )}
                   </div>
                 )}
 
-                <div className="flex justify-between items-end">
-                  <div className="text-xs text-gray-400">
-                    <div className="flex items-center mb-1"><Clock className="w-3 h-3 mr-1"/> {task.dueDate}</div>
-                    <div>{employees.find(e => e.id === task.assignedTo)?.firstName || 'Sin asignar'}</div>
+                <div className="flex justify-between items-end pt-2 border-t border-slate-100 mt-2">
+                  <div className="text-[11px] text-slate-500">
+                    <div className="flex items-center gap-1 font-mono text-[10px] text-slate-400 mb-0.5">
+                      <Clock className="w-3 h-3"/> {task.dueDate}
+                    </div>
+                    <div className="font-medium text-slate-700 truncate max-w-[130px]">
+                      {employees.find(e => e.id === task.assignedTo)?.firstName || 'Sin asignar'}
+                    </div>
                   </div>
                   
                   <div className="flex gap-1">
                     {status !== TaskStatus.TODO && (
-                      <button onClick={() => handleStatusChange(task, TaskStatus.TODO)} className="w-6 h-6 rounded bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-xs" title="Mover a Por Hacer">←</button>
+                      <button 
+                        onClick={() => handleStatusChange(task, TaskStatus.TODO)} 
+                        className="w-6 h-6 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center text-xs font-bold transition-colors" 
+                        title="Mover a Por Hacer"
+                      >
+                        ←
+                      </button>
                     )}
                     {status !== TaskStatus.IN_PROGRESS && (
-                      <button onClick={() => handleStatusChange(task, TaskStatus.IN_PROGRESS)} className="w-6 h-6 rounded bg-blue-50 hover:bg-blue-100 text-blue-600 flex items-center justify-center text-xs" title="Mover a En Progreso">
+                      <button 
+                        onClick={() => handleStatusChange(task, TaskStatus.IN_PROGRESS)} 
+                        className="w-6 h-6 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center text-xs font-bold transition-colors" 
+                        title="Mover a En Progreso"
+                      >
                         {status === TaskStatus.TODO ? '→' : '←'}
                       </button>
                     )}
                     {status !== TaskStatus.DONE && (
                       <button 
                         onClick={() => openDeliveryModal(task)} 
-                        className="w-6 h-6 rounded bg-green-50 hover:bg-green-100 text-green-600 flex items-center justify-center text-xs" 
+                        className="w-6 h-6 rounded-md bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 flex items-center justify-center text-xs transition-colors" 
                         title="Entregar y Completar"
                       >
                         <Upload className="w-3 h-3" />
@@ -240,34 +256,37 @@ export const Tasks: React.FC<TasksProps> = ({ tasks, employees, isLoading }) => 
   };
 
   return (
-    <div className="p-6 h-full flex flex-col">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+    <div className="p-4 sm:p-6 lg:p-8 h-full flex flex-col max-w-7xl mx-auto space-y-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800">Tablero de Tareas</h2>
-          <p className="text-sm text-gray-500">Gestiona y organiza el flujo de trabajo</p>
+          <h2 className="text-xl font-bold text-slate-900 tracking-tight">Tablero de Tareas</h2>
+          <p className="text-xs text-slate-500 mt-0.5">Gestión operativa y seguimiento de entregas</p>
         </div>
-        <button onClick={() => handleOpenModal()} className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg flex items-center transition-colors shadow-sm whitespace-nowrap">
-          <Plus className="w-5 h-5 mr-2" /> Nueva Tarea
+        <button 
+          onClick={() => handleOpenModal()} 
+          className="bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-2 rounded-lg flex items-center transition-colors shadow-xs text-xs font-semibold whitespace-nowrap"
+        >
+          <Plus className="w-4 h-4 mr-1.5" /> Nueva Tarea
         </button>
       </div>
 
       {/* Search and Filter Bar */}
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 mb-6 grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+      <div className="bg-white p-3.5 rounded-xl border border-slate-200/80 shadow-xs grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 items-center">
         <div className="relative">
-          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
           <input 
             type="text" 
-            placeholder="Buscar tarea..." 
-            className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-orange-200 focus:border-orange-400 outline-none transition-all"
+            placeholder="Buscar por título o descripción..." 
+            className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-xs bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-slate-900 outline-none transition-all placeholder:text-slate-400"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
         <div className="relative">
-          <Filter className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+          <Filter className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
           <select 
-            className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-orange-200 focus:border-orange-400 outline-none appearance-none transition-all"
+            className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-xs bg-white text-slate-700 focus:ring-2 focus:ring-slate-900 outline-none cursor-pointer"
             value={filterAssignee}
             onChange={(e) => setFilterAssignee(e.target.value)}
           >
@@ -279,23 +298,23 @@ export const Tasks: React.FC<TasksProps> = ({ tasks, employees, isLoading }) => 
         </div>
 
         <div className="relative">
-          <Calendar className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+          <Calendar className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
           <input 
             type="date" 
-            className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-orange-200 focus:border-orange-400 outline-none transition-all"
+            className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-xs bg-white text-slate-700 focus:ring-2 focus:ring-slate-900 outline-none transition-all cursor-pointer"
             value={filterDate}
             onChange={(e) => setFilterDate(e.target.value)}
           />
         </div>
 
-        {(searchTerm || filterAssignee || filterDate) && (
+        {(searchTerm || filterAssignee || filterDate) ? (
           <button 
             onClick={clearFilters}
-            className="flex items-center justify-center px-4 py-2 text-sm text-gray-500 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors border border-dashed border-gray-300 hover:border-red-200"
+            className="flex items-center justify-center px-3 py-2 text-xs font-medium text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors border border-slate-200"
           >
-            <X className="w-4 h-4 mr-2" /> Limpiar Filtros
+            <X className="w-3.5 h-3.5 mr-1" /> Limpiar Filtros
           </button>
-        )}
+        ) : <div className="hidden md:block" />}
       </div>
 
       <div className="flex gap-6 overflow-x-auto pb-4 h-[calc(100vh-280px)]">

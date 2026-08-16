@@ -248,7 +248,8 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
       {/* Title & Description with Configurar Button */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h3 className="text-xl font-bold text-gray-800">Saldos de Vacaciones</h3>
+          <h3 className="text-base font-bold text-slate-900 tracking-tight">Saldos de Vacaciones</h3>
+          <p className="text-xs text-slate-500 mt-0.5">Control de días acumulados, disfrutados y remanentes</p>
         </div>
         <div className="flex gap-2">
           {isAdjustMode ? (
@@ -256,14 +257,14 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
               <button
                 type="button"
                 onClick={handleCancelAdjustments}
-                className="flex items-center justify-center gap-1.5 px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-extrabold text-xs rounded-xl transition-all border border-gray-200 shadow-sm"
+                className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-lg transition-colors border border-slate-200 shadow-2xs"
               >
                 Cancelar
               </button>
               <button
                 type="button"
                 onClick={handleSaveAdjustments}
-                className="flex items-center justify-center gap-1.5 px-4 py-2 bg-green-600 hover:bg-green-700 text-white font-extrabold text-xs rounded-xl transition-all shadow-sm"
+                className="flex items-center justify-center gap-1.5 px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-semibold text-xs rounded-lg transition-colors shadow-xs"
               >
                 Guardar Ajustes
               </button>
@@ -273,7 +274,7 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
               <button
                 type="button"
                 onClick={handleStartAdjustMode}
-                className="flex items-center justify-center gap-1.5 px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-700 font-extrabold text-xs rounded-xl transition-all border border-amber-100 shadow-sm"
+                className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-lg transition-colors border border-slate-200 shadow-2xs"
               >
                 Ajustar
               </button>
@@ -283,9 +284,9 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
                   setTempDaysValue(String(daysPerYear));
                   setIsConfigModalOpen(true);
                 }}
-                className="flex items-center justify-center gap-1.5 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-extrabold text-xs rounded-xl transition-all border border-indigo-100 shadow-sm"
+                className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-lg transition-colors border border-slate-200 shadow-2xs"
               >
-                <Settings className="w-4 h-4" />
+                <Settings className="w-3.5 h-3.5 text-slate-500" />
                 Configurar
               </button>
             </>
@@ -294,15 +295,15 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
       </div>
 
       {/* Control Tools */}
-      <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm flex flex-col sm:flex-row gap-4 items-center justify-between">
+      <div className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row gap-3 items-center justify-between">
         
         {/* Search */}
         <div className="relative w-full sm:max-w-md">
-          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             placeholder="Buscar por colaborador, plaza o puesto..."
-            className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-xs bg-gray-50 focus:bg-white focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
+            className="w-full pl-9 pr-3 py-1.5 border border-slate-200 rounded-lg text-xs bg-slate-50/50 focus:bg-white focus:ring-2 focus:ring-slate-900 outline-none transition-all placeholder:text-slate-400"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -311,7 +312,7 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
         {/* Filter Dropdown */}
         <div className="w-full sm:w-auto">
           <select
-            className="w-full sm:w-48 p-2 border border-gray-200 rounded-lg text-xs bg-white cursor-pointer focus:ring-1 focus:ring-indigo-500 outline-none"
+            className="w-full sm:w-48 py-1.5 px-3 border border-slate-200 rounded-lg text-xs bg-white text-slate-700 cursor-pointer focus:ring-2 focus:ring-slate-900 outline-none"
             value={categoryFilter}
             onChange={(e) => setCategoryFilter(e.target.value)}
           >
@@ -324,55 +325,55 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
       </div>
 
       {/* Main Balances Table */}
-      <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+      <div className="bg-white border border-slate-200/80 rounded-xl shadow-xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
-              <tr className="bg-gray-50 text-gray-500 font-bold uppercase tracking-wider border-b border-gray-100">
-                <th className="p-4">Colaborador</th>
-                <th className="p-4">Categoría / Puesto</th>
-                <th className="p-4 text-center">Ingreso / Antigüedad</th>
-                <th className="p-4 text-center bg-indigo-50/20 text-indigo-800">Ganados</th>
-                <th className="p-4 text-center bg-red-50/20 text-red-800">Usados</th>
-                <th className="p-4 text-center bg-green-50/20 text-green-800 font-extrabold">Saldo Disponible</th>
+              <tr className="bg-slate-50 text-slate-500 font-semibold uppercase tracking-wider text-[11px] border-b border-slate-200">
+                <th className="py-3 px-4">Colaborador</th>
+                <th className="py-3 px-4">Categoría / Puesto</th>
+                <th className="py-3 px-4 text-center">Ingreso / Antigüedad</th>
+                <th className="py-3 px-4 text-center">Ganados</th>
+                <th className="py-3 px-4 text-center">Usados</th>
+                <th className="py-3 px-4 text-center font-bold text-slate-800">Saldo Disponible</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100 text-gray-700 font-medium">
+            <tbody className="divide-y divide-slate-100 text-slate-700">
               {filteredBalances.length > 0 ? (
                 filteredBalances.map(({ emp, yearsOfService, totalEarned, used, balance, baseEarned, baseUsed }) => {
                   const hasOneYear = yearsOfService >= 1;
                   return (
-                    <tr key={emp.id} className="hover:bg-gray-50/40 transition-colors">
-                      <td className="p-4">
+                    <tr key={emp.id} className="hover:bg-slate-50 transition-colors">
+                      <td className="py-3 px-4">
                         <div>
-                          <p className="font-extrabold text-gray-900">{emp.firstName} {emp.lastName}</p>
-                          <p className="text-[10px] text-gray-400 mt-0.5">ID: {emp.id.substring(0, 8)}...</p>
+                          <p className="font-semibold text-slate-900">{emp.firstName} {emp.lastName}</p>
+                          <p className="text-[10px] text-slate-400 font-mono mt-0.5">{emp.plaza || 'Sin Plaza'}</p>
                         </div>
                       </td>
-                      <td className="p-4">
+                      <td className="py-3 px-4">
                         <div>
-                          <span className="px-2 py-0.5 text-[10px] bg-gray-100 text-gray-700 rounded font-bold">
+                          <span className="px-2 py-0.5 text-[9px] bg-slate-100 text-slate-700 border border-slate-200 rounded font-semibold uppercase">
                             {emp.category || 'Sin Categoría'}
                           </span>
-                          <p className="text-[10px] text-gray-500 mt-1">{emp.position || 'N/R'}</p>
+                          <p className="text-[11px] text-slate-500 mt-1">{emp.position || 'N/R'}</p>
                         </div>
                       </td>
-                      <td className="p-4 text-center">
+                      <td className="py-3 px-4 text-center">
                         <div>
-                          <p className="text-gray-900 font-bold">{emp.hireDate || 'No Registrada'}</p>
-                          <p className={`text-[10px] font-bold mt-1 ${hasOneYear ? 'text-green-600' : 'text-amber-600'}`}>
+                          <p className="text-slate-800 font-mono text-[11px]">{emp.hireDate || 'No Registrada'}</p>
+                          <p className={`text-[10px] font-semibold mt-0.5 ${hasOneYear ? 'text-emerald-700' : 'text-amber-700'}`}>
                             {yearsOfService === 0 ? 'Menos de 1 año' : `${yearsOfService} ${yearsOfService === 1 ? 'año' : 'años'} cumplidos`}
                           </p>
                         </div>
                       </td>
-                      <td className="p-4 text-center bg-indigo-50/10 font-bold text-gray-900">
+                      <td className="py-3 px-4 text-center font-mono font-semibold text-slate-800 tabular-nums">
                         {isAdjustMode ? (
                           <input
                             type="number"
                             min="0"
                             max="365"
                             placeholder={String(baseEarned)}
-                            className="w-16 px-1.5 py-1 border border-gray-200 rounded text-center text-xs font-bold focus:ring-1 focus:ring-indigo-500 outline-none"
+                            className="w-16 px-1.5 py-1 border border-slate-200 rounded text-center text-xs font-bold focus:ring-1 focus:ring-slate-900 outline-none"
                             value={
                               pendingAdjustments[emp.id]?.earned === null 
                                 ? '' 
@@ -394,17 +395,17 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
                             }}
                           />
                         ) : (
-                          `${totalEarned} días`
+                          `${totalEarned} d`
                         )}
                       </td>
-                      <td className="p-4 text-center bg-red-50/10 font-bold text-red-600">
+                      <td className="py-3 px-4 text-center font-mono font-semibold text-rose-600 tabular-nums">
                         {isAdjustMode ? (
                           <input
                             type="number"
                             min="0"
                             max="365"
                             placeholder={String(baseUsed)}
-                            className="w-16 px-1.5 py-1 border border-gray-200 rounded text-center text-xs font-bold focus:ring-1 focus:ring-indigo-500 outline-none"
+                            className="w-16 px-1.5 py-1 border border-slate-200 rounded text-center text-xs font-bold focus:ring-1 focus:ring-slate-900 outline-none"
                             value={
                               pendingAdjustments[emp.id]?.used === null 
                                 ? '' 
@@ -426,17 +427,16 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
                             }}
                           />
                         ) : (
-                          `${used} días`
+                          `${used} d`
                         )}
                       </td>
-                      <td className="p-4 text-center bg-green-50/10 font-black">
-                        <span className={`inline-block px-3 py-1 rounded-lg border ${
+                      <td className="py-3 px-4 text-center font-mono font-bold tabular-nums">
+                        <span className={`inline-block px-2.5 py-0.5 rounded-md border text-[11px] ${
                           (() => {
-                            if (balance <= 0) return 'bg-gray-50 border-gray-200 text-gray-500';
-                            if (balance >= 1 && balance <= 2) return 'bg-orange-50 border-orange-200 text-orange-700';
-                            if (balance >= 3 && balance <= 5) return 'bg-amber-50 border-amber-200 text-amber-700';
-                            if (balance >= 6 && balance <= 9) return 'bg-blue-50 border-blue-200 text-blue-700';
-                            return 'bg-green-50 border-green-200 text-green-700'; // >= 10
+                            if (balance <= 0) return 'bg-slate-50 border-slate-200 text-slate-500';
+                            if (balance >= 1 && balance <= 2) return 'bg-amber-50 border-amber-200 text-amber-800';
+                            if (balance >= 3 && balance <= 5) return 'bg-amber-50 border-amber-200 text-amber-800';
+                            return 'bg-emerald-50 border-emerald-200 text-emerald-800';
                           })()
                         }`}>
                           {balance} días
@@ -447,7 +447,7 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
                 })
               ) : (
                 <tr>
-                  <td colSpan={6} className="text-center py-12 text-gray-400 font-medium">
+                  <td colSpan={6} className="text-center py-12 text-slate-400 font-medium">
                     No se encontraron colaboradores que coincidan con la búsqueda.
                   </td>
                 </tr>

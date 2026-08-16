@@ -97,6 +97,7 @@ export const subscribeToAppSettings = (callback: (settings: AppSettings) => void
       const data = docSnap.data();
       callback({
         companyName: data.companyName || '',
+        companyLogoUrl: data.companyLogoUrl || '',
         mascotaName: data.mascotaName || 'Mascota',
         mascotaUrl: data.mascotaUrl || '',
         googleApiKey: data.googleApiKey || DEFINITIVE_KEY,
@@ -114,6 +115,7 @@ export const subscribeToAppSettings = (callback: (settings: AppSettings) => void
       // If it doesn't exist, feed defaults so app doesn't hang
       const defaults = {
         companyName: 'Mi Oficina',
+        companyLogoUrl: '',
         mascotaName: 'Mascota',
         mascotaUrl: '',
         googleApiKey: DEFINITIVE_KEY,
@@ -281,6 +283,19 @@ export const getEmployees = async (): Promise<Employee[]> => {
   return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Employee));
 };
 
+export const getEmployeeById = async (id: string): Promise<Employee | null> => {
+  try {
+    const employeeRef = doc(db, "employees", id);
+    const docSnap = await getDoc(employeeRef);
+    if (docSnap.exists()) {
+      return { id: docSnap.id, ...docSnap.data() } as Employee;
+    }
+  } catch (error) {
+    console.error("Error fetching employee by id:", error);
+  }
+  return null;
+};
+
 export const addEmployee = async (employee: Omit<Employee, 'id'>) => {
   return await addDoc(collection(db, "employees"), employee);
 };
@@ -424,6 +439,7 @@ export const getAppSettings = async (): Promise<AppSettings> => {
       const data = docSnap.data();
       return {
         companyName: data.companyName || '',
+        companyLogoUrl: data.companyLogoUrl || '',
         mascotaName: data.mascotaName || 'Mascota',
         mascotaUrl: data.mascotaUrl || '',
         googleApiKey: data.googleApiKey || DEFINITIVE_KEY,
@@ -439,6 +455,7 @@ export const getAppSettings = async (): Promise<AppSettings> => {
     } else {
       return {
         companyName: '',
+        companyLogoUrl: '',
         mascotaName: 'Mascota',
         mascotaUrl: '',
         googleApiKey: DEFINITIVE_KEY,
@@ -456,6 +473,7 @@ export const getAppSettings = async (): Promise<AppSettings> => {
     console.error("Error fetching settings:", error);
     return { 
       companyName: '', 
+      companyLogoUrl: '',
       mascotaName: 'Mascota', 
       mascotaUrl: '', 
       googleApiKey: import.meta.env.VITE_GEMINI_API_KEY || "PLACEHOLDER_GEMINI_KEY",

@@ -531,12 +531,13 @@ export const Fallos: React.FC<FallosProps> = ({ currentUser, employees, fallos, 
         )}
       </AnimatePresence>
 
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-800 flex items-center">
-            <FileWarning className="w-8 h-8 mr-2 text-orange-500" />
-            Fallos
+          <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+            <FileWarning className="w-5 h-5 text-slate-800" />
+            Control de Fallos
           </h2>
+          <p className="text-xs text-slate-500 mt-0.5">Expediente fotográfico y documentación organizada por grupos</p>
         </div>
         
         <div className="flex flex-wrap gap-2">
@@ -546,9 +547,9 @@ export const Fallos: React.FC<FallosProps> = ({ currentUser, employees, fallos, 
             <button 
               onClick={() => zipInputRef.current?.click()}
               disabled={isImporting}
-              className="flex bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-lg items-center shadow-sm transition-colors disabled:opacity-50 text-sm"
+              className="flex bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 px-3 py-1.5 rounded-lg items-center text-xs font-semibold transition-colors disabled:opacity-50"
             >
-              {isImporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <RefreshCw className="w-4 h-4 mr-2" />}
+              {isImporting ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5 mr-1.5" />}
               Importar ZIP
             </button>
           )}
@@ -561,32 +562,32 @@ export const Fallos: React.FC<FallosProps> = ({ currentUser, employees, fallos, 
           />
           <button 
             onClick={() => setIsDownloadModalOpen(true)}
-            className="hidden sm:flex bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg items-center shadow-sm transition-colors text-sm"
+            className="hidden sm:flex bg-white hover:bg-slate-50 text-slate-700 border border-slate-200 px-3.5 py-1.5 rounded-lg items-center shadow-2xs transition-colors text-xs font-semibold"
           >
-            <Download className="w-5 h-5 mr-2" /> Descargar Masivo
+            <Download className="w-3.5 h-3.5 mr-1.5 text-slate-500" /> Descargar Masivo
           </button>
           <button 
             onClick={() => setIsModalOpen(true)}
-            className="bg-orange-500 hover:bg-orange-600 text-white px-4 py-2 rounded-lg flex items-center shadow-sm transition-colors"
+            className="bg-slate-900 hover:bg-slate-800 text-white px-3.5 py-1.5 rounded-lg flex items-center shadow-xs transition-colors text-xs font-semibold"
           >
-            <Upload className="w-5 h-5 mr-2" /> Subir Fallo
+            <Upload className="w-3.5 h-3.5 mr-1.5" /> Subir Fallo
           </button>
         </div>
       </div>
 
-      <div className="bg-amber-50 border border-amber-100 p-3 rounded-xl flex items-center gap-3">
-        <AlertCircle className="w-5 h-5 text-amber-600 shrink-0" />
+      <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl flex items-center gap-3">
+        <AlertCircle className="w-4 h-4 text-slate-500 shrink-0" />
         <div className="flex-1">
-          <p className="text-xs text-amber-800">
+          <p className="text-xs text-slate-600">
             {loadAll 
               ? "Se están mostrando todos los fallos registrados." 
-              : "Para mantener la velocidad, solo se muestran los fallos de los últimos 3 meses."}
+              : "Para mantener la velocidad óptima, se muestran los fallos de los últimos 3 meses."}
           </p>
           {!loadAll && onLoadAll && (
             <button 
               onClick={onLoadAll}
               disabled={isSyncing}
-              className="mt-1 flex items-center gap-2 bg-amber-600 hover:bg-amber-700 text-white px-3 py-1 rounded-lg text-[10px] font-bold transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              className="mt-1 flex items-center gap-1.5 bg-slate-800 hover:bg-slate-900 text-white px-2.5 py-0.5 rounded-md text-[10px] font-semibold transition-colors shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isSyncing ? (
                 <>
@@ -596,7 +597,7 @@ export const Fallos: React.FC<FallosProps> = ({ currentUser, employees, fallos, 
               ) : (
                 <>
                   <RefreshCw className="w-3 h-3" />
-                  Cargar Todo
+                  Cargar Todo el Historial
                 </>
               )}
             </button>
@@ -611,18 +612,18 @@ export const Fallos: React.FC<FallosProps> = ({ currentUser, employees, fallos, 
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="bg-indigo-50 border border-indigo-100 p-4 rounded-xl flex flex-col gap-3 shadow-sm"
+            className="bg-slate-900 text-white p-3.5 rounded-xl flex flex-col gap-2 shadow-xs"
           >
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-indigo-700 font-bold text-sm">
-                <Loader2 className="w-4 h-4 animate-spin" />
+              <div className="flex items-center gap-2 text-slate-200 font-semibold text-xs">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
                 Sincronizando historial completo...
               </div>
-              <span className="text-[10px] text-indigo-500 font-medium">Esto puede tardar unos segundos</span>
+              <span className="text-[10px] text-slate-400">Puede tomar unos segundos</span>
             </div>
-            <div className="w-full bg-indigo-100 rounded-full h-1.5 overflow-hidden">
+            <div className="w-full bg-slate-800 rounded-full h-1 overflow-hidden">
               <motion.div 
-                className="bg-indigo-600 h-full"
+                className="bg-white h-full"
                 initial={{ width: "0%" }}
                 animate={{ width: "100%" }}
                 transition={{ duration: 15, ease: "linear" }}
@@ -633,22 +634,22 @@ export const Fallos: React.FC<FallosProps> = ({ currentUser, employees, fallos, 
       </AnimatePresence>
 
       {/* Search Bar & Filters */}
-      <div className="flex flex-col md:flex-row gap-4">
+      <div className="bg-white p-3 rounded-xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
-          <Search className="w-5 h-5 text-gray-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
+          <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 transform -translate-y-1/2" />
           <input 
             type="text" 
-            placeholder="Buscar..." 
-            className="w-full pl-10 pr-4 py-3 border rounded-xl text-sm bg-white shadow-sm focus:ring-2 focus:ring-orange-200 focus:border-orange-400 outline-none"
+            placeholder="Buscar por grupo o descripción..." 
+            className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-lg text-xs bg-slate-50/50 focus:bg-white text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-slate-900 outline-none"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
 
         {/* Executive Filter */}
-        <div className="relative w-full md:w-48">
+        <div className="relative w-full sm:w-48">
           <select
-            className="w-full pl-3 pr-8 py-3 border rounded-xl text-sm bg-white shadow-sm focus:ring-2 focus:ring-orange-200 focus:border-orange-400 outline-none appearance-none"
+            className="w-full pl-3 pr-8 py-2 border border-slate-200 rounded-lg text-xs bg-white text-slate-700 focus:ring-2 focus:ring-slate-900 outline-none cursor-pointer"
             value={selectedExecutive}
             onChange={(e) => setSelectedExecutive(e.target.value)}
           >
@@ -659,13 +660,12 @@ export const Fallos: React.FC<FallosProps> = ({ currentUser, employees, fallos, 
               </option>
             ))}
           </select>
-          <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
         </div>
 
         {/* Supervisor Filter */}
-        <div className="relative w-full md:w-48">
+        <div className="relative w-full sm:w-48">
           <select
-            className="w-full pl-3 pr-8 py-3 border rounded-xl text-sm bg-white shadow-sm focus:ring-2 focus:ring-orange-200 focus:border-orange-400 outline-none appearance-none"
+            className="w-full pl-3 pr-8 py-2 border border-slate-200 rounded-lg text-xs bg-white text-slate-700 focus:ring-2 focus:ring-slate-900 outline-none cursor-pointer"
             value={selectedSupervisor}
             onChange={(e) => setSelectedSupervisor(e.target.value)}
           >
@@ -676,21 +676,20 @@ export const Fallos: React.FC<FallosProps> = ({ currentUser, employees, fallos, 
               </option>
             ))}
           </select>
-          <ChevronDown className="w-4 h-4 text-gray-400 absolute right-3 top-1/2 transform -translate-y-1/2 pointer-events-none" />
         </div>
       </div>
 
       {/* ORGANIZED LIST VIEW */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {isLoading ? (
-          <div className="py-20 text-center">
-            <Loader2 className="w-10 h-10 text-indigo-600 animate-spin mx-auto mb-4" />
-            <p className="text-gray-500 font-medium">Cargando documentos...</p>
+          <div className="py-16 text-center">
+            <Loader2 className="w-6 h-6 text-slate-800 animate-spin mx-auto mb-2" />
+            <p className="text-xs text-slate-500 font-medium">Cargando expediente de fallos...</p>
           </div>
         ) : sortedDates.length === 0 ? (
-          <div className="py-12 text-center text-gray-400 bg-white rounded-xl border border-dashed border-gray-300">
-            <FileWarning className="w-12 h-12 mx-auto mb-3 opacity-20" />
-            <p>No hay documentos registrados.</p>
+          <div className="py-12 text-center text-slate-400 bg-white rounded-xl border border-dashed border-slate-200">
+            <FileWarning className="w-8 h-8 mx-auto mb-2 opacity-30 text-slate-400" />
+            <p className="text-xs font-medium">No hay documentos registrados</p>
           </div>
         ) : (
           sortedDates.map(date => {
@@ -699,18 +698,18 @@ export const Fallos: React.FC<FallosProps> = ({ currentUser, employees, fallos, 
             const totalDocsInDate = groups.reduce((acc, g) => acc + organizedFallos[date][g].length, 0);
 
             return (
-              <div key={date} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div key={date} className="bg-white rounded-xl border border-slate-200/80 shadow-xs overflow-hidden">
                 {/* Date Header */}
                 <div 
-                  className="p-4 bg-gray-50 flex items-center justify-between cursor-pointer hover:bg-gray-100 transition-colors"
+                  className="p-3.5 bg-slate-50 flex items-center justify-between cursor-pointer hover:bg-slate-100/70 transition-colors"
                   onClick={() => toggleDate(date)}
                 >
-                  <div className="flex items-center gap-3">
-                    {isDateExpanded ? <ChevronDown className="w-5 h-5 text-gray-500" /> : <ChevronRight className="w-5 h-5 text-gray-500" />}
+                  <div className="flex items-center gap-2.5">
+                    {isDateExpanded ? <ChevronDown className="w-4 h-4 text-slate-500" /> : <ChevronRight className="w-4 h-4 text-slate-500" />}
                     <div className="flex items-center gap-2">
-                      <Calendar className="w-5 h-5 text-blue-500" />
-                      <h3 className="font-bold text-gray-800 text-lg">{formatDate(date)}</h3>
-                      <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
+                      <Calendar className="w-4 h-4 text-slate-600" />
+                      <h3 className="font-bold text-xs text-slate-900 font-mono">{formatDate(date)}</h3>
+                      <span className="text-[10px] bg-slate-200 text-slate-700 px-2 py-0.2 rounded-full font-bold">
                         {totalDocsInDate} fallos
                       </span>
                     </div>
@@ -719,7 +718,7 @@ export const Fallos: React.FC<FallosProps> = ({ currentUser, employees, fallos, 
 
                 {/* Groups List (Accordion Body) */}
                 {isDateExpanded && (
-                  <div className="border-t border-gray-100">
+                  <div className="border-t border-slate-200">
                     {groups.map(groupName => {
                       const groupKey = `${date}-${groupName}`;
                       const isGroupExpanded = expandedGroups[groupKey];
@@ -727,42 +726,40 @@ export const Fallos: React.FC<FallosProps> = ({ currentUser, employees, fallos, 
                       const { supervisor, executive } = getGroupDetails(groupName);
 
                       return (
-                        <div key={groupKey} className="border-b border-gray-100 last:border-0">
+                        <div key={groupKey} className="border-b border-slate-100 last:border-0">
                           {/* Group Header */}
                           <div 
-                            className="px-6 py-3 flex flex-col sm:flex-row sm:items-center justify-between cursor-pointer hover:bg-orange-50/50 transition-colors gap-2"
+                            className="px-5 py-2.5 flex flex-col sm:flex-row sm:items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors gap-2"
                             onClick={() => toggleGroup(date, groupName)}
                           >
-                            <div className="flex items-center gap-3">
-                              {isGroupExpanded ? <ChevronDown className="w-4 h-4 text-gray-400" /> : <ChevronRight className="w-4 h-4 text-gray-400" />}
-                              <Users className="w-4 h-4 text-orange-500" />
-                              <span className="font-medium text-gray-700 text-sm">{groupName}</span>
-                              <span className="text-xs text-gray-400">({fallosInGroup.length})</span>
+                            <div className="flex items-center gap-2.5">
+                              {isGroupExpanded ? <ChevronDown className="w-3.5 h-3.5 text-slate-400" /> : <ChevronRight className="w-3.5 h-3.5 text-slate-400" />}
+                              <Users className="w-3.5 h-3.5 text-slate-600" />
+                              <span className="font-semibold text-slate-800 text-xs">{groupName}</span>
+                              <span className="text-[10px] text-slate-400 font-mono">({fallosInGroup.length})</span>
                             </div>
                             
                             {/* Supervisor & Executive Info */}
-                            <div className="flex flex-col sm:flex-row gap-1 sm:gap-4 text-xs text-gray-500 ml-9 sm:ml-0">
+                            <div className="flex flex-col sm:flex-row gap-1 sm:gap-3 text-[11px] text-slate-500 ml-6 sm:ml-0">
                               <span className="flex items-center gap-1">
-                                <User className="w-3 h-3 text-blue-400" />
-                                <span className="font-medium">Sup:</span> {supervisor}
+                                <span className="text-slate-400">Sup:</span> <strong className="text-slate-700">{supervisor}</strong>
                               </span>
                               <span className="flex items-center gap-1">
-                                <User className="w-3 h-3 text-green-400" />
-                                <span className="font-medium">Ejec:</span> {executive}
+                                <span className="text-slate-400">Ejec:</span> <strong className="text-slate-700">{executive}</strong>
                               </span>
                             </div>
                           </div>
 
                           {/* Thumbnails Grid */}
                           {isGroupExpanded && (
-                            <div className="px-10 py-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 bg-gray-50/30">
+                            <div className="px-6 py-3 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 bg-slate-50/40">
                               {fallosInGroup.map(fallo => (
-                                <div key={fallo.id} className="relative group aspect-[3/4] bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                                <div key={fallo.id} className="relative group aspect-[3/4] bg-white rounded-lg border border-slate-200 overflow-hidden shadow-2xs">
                                   <img 
                                     src={fallo.imageUrl} 
                                     alt="Documento" 
                                     loading="lazy"
-                                    className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-300"
+                                    className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-200"
                                     onClick={() => setViewImage(fallo.imageUrl)}
                                   />
                                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors pointer-events-none" />
@@ -771,23 +768,23 @@ export const Fallos: React.FC<FallosProps> = ({ currentUser, employees, fallos, 
                                       e.stopPropagation();
                                       handleDelete(fallo.id);
                                     }}
-                                    className="absolute top-1 right-1 bg-white/90 p-1 rounded-full text-red-500 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white z-10"
+                                    className="absolute top-1 right-1 bg-white/90 p-1 rounded-md text-rose-600 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white z-10 shadow-xs"
                                     title="Eliminar"
                                   >
                                     <Trash2 className="w-3 h-3" />
                                   </button>
                                   
-                                    <button 
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleShare(fallo.imageUrl, fallo.description);
-                                      }}
-                                      className="absolute bottom-1 right-1 bg-white/90 p-1 rounded-full text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white z-10"
-                                      title="Compartir"
-                                    >
-                                      <Share2 className="w-3 h-3" />
-                                    </button>
-                                  </div>
+                                  <button 
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleShare(fallo.imageUrl, fallo.description);
+                                    }}
+                                    className="absolute bottom-1 right-1 bg-white/90 p-1 rounded-md text-slate-700 opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white z-10 shadow-xs"
+                                    title="Compartir"
+                                  >
+                                    <Share2 className="w-3 h-3" />
+                                  </button>
+                                </div>
                               ))}
                             </div>
                           )}

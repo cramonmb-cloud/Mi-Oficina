@@ -25,6 +25,8 @@ export interface Employee {
   hireDate: string;
   phone: string;
   avatarUrl?: string;
+  photoUrl?: string; // Fotografía oficial del empleado (Base64 o URL)
+  curp?: string; // Clave Única de Registro de Población
   accessCode?: string; // Código de 4 dígitos
   isOfficeUser?: boolean; // True if logged in as an office
   officeId?: string; // Associated office ID
@@ -76,6 +78,7 @@ export interface AiInsight {
 
 export interface AppSettings {
   companyName: string;
+  companyLogoUrl?: string; // Logotipo oficial de la empresa
   mascotaName: string;
   mascotaUrl: string;
   googleApiKey?: string;

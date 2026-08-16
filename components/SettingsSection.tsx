@@ -38,6 +38,7 @@ import { Fallo } from '../types';
 
 interface SettingsSectionProps {
   companyName: string;
+  companyLogoUrl?: string;
   mascotaName: string;
   mascotaUrl: string;
   imprentaUrl: string;
@@ -57,6 +58,7 @@ type CategoryType = 'general' | 'mascota' | 'apis' | 'mensajeria' | 'navegacion'
 
 export function SettingsSection({
   companyName,
+  companyLogoUrl,
   mascotaName,
   mascotaUrl,
   imprentaUrl,
@@ -76,6 +78,7 @@ export function SettingsSection({
 
   // Form states
   const [tempCompanyName, setTempCompanyName] = useState(companyName);
+  const [tempCompanyLogoUrl, setTempCompanyLogoUrl] = useState(companyLogoUrl || '');
   const [tempMascotaName, setTempMascotaName] = useState(mascotaName);
   const [tempMascotaUrl, setTempMascotaUrl] = useState(mascotaUrl);
   const [tempImprentaUrl, setTempImprentaUrl] = useState(imprentaUrl);
@@ -102,6 +105,7 @@ export function SettingsSection({
   // Sync inputs if props change (e.g. real-time updates)
   useEffect(() => {
     setTempCompanyName(companyName);
+    setTempCompanyLogoUrl(companyLogoUrl || '');
     setTempMascotaName(mascotaName);
     setTempMascotaUrl(mascotaUrl);
     setTempImprentaUrl(imprentaUrl);
@@ -247,6 +251,7 @@ export function SettingsSection({
     try {
       await updateAppSettings({
         companyName: tempCompanyName,
+        companyLogoUrl: tempCompanyLogoUrl,
         mascotaName: finalMascotaName,
         mascotaUrl: tempMascotaUrl,
         googleApiKey: finalApiKey,
@@ -298,24 +303,24 @@ export function SettingsSection({
         <div className="flex items-center gap-3">
           <button 
             onClick={onClose}
-            className="p-1.5 hover:bg-gray-100 rounded-xl text-gray-500 hover:text-gray-900 transition-colors"
+            className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-900 transition-colors"
             title="Volver"
             id="settings-back-btn"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4" />
           </button>
           <div>
-            <h2 className="text-base font-bold text-gray-900 tracking-tight flex items-center gap-2">
+            <h2 className="text-base font-bold text-slate-900 tracking-tight flex items-center gap-2">
               Ajustes del Sistema
             </h2>
-            <p className="text-[10px] text-gray-400 font-medium">Configura la identidad, APIs y comportamiento global de la oficina</p>
+            <p className="text-[11px] text-slate-500 font-medium">Configura la identidad, APIs y comportamiento global de la oficina</p>
           </div>
         </div>
         
         <div className="flex items-center gap-2">
           <button
             onClick={onClose}
-            className="px-3.5 py-2 text-xs font-bold text-gray-500 hover:bg-gray-100 rounded-xl transition-all"
+            className="px-3.5 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition-all"
             id="settings-cancel-btn"
           >
             Cancelar
@@ -323,7 +328,7 @@ export function SettingsSection({
           <button
             onClick={handleSaveSettings}
             disabled={isSaving}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl font-bold text-xs shadow-sm flex items-center gap-1.5 transition-all disabled:opacity-50"
+            className="bg-slate-900 hover:bg-slate-800 text-white px-4 py-1.5 rounded-lg font-semibold text-xs shadow-xs flex items-center gap-1.5 transition-all disabled:opacity-50"
             id="settings-save-btn"
           >
             {isSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
@@ -335,8 +340,8 @@ export function SettingsSection({
       {/* Main Layout Area */}
       <div className="flex-1 flex flex-col md:flex-row overflow-hidden">
         {/* Category Navigation Bar */}
-        <div className="w-full md:w-64 bg-white border-b md:border-b-0 md:border-r border-gray-150 shrink-0 overflow-x-auto md:overflow-y-auto flex md:flex-col py-2 md:py-4 px-3 gap-1 scrollbar-none">
-          <div className="hidden md:block text-[10px] font-bold text-gray-400 uppercase tracking-wider px-3 mb-3">
+        <div className="w-full md:w-64 bg-white border-b md:border-b-0 md:border-r border-slate-200 shrink-0 overflow-x-auto md:overflow-y-auto flex md:flex-col py-2 md:py-4 px-3 gap-1 scrollbar-none">
+          <div className="hidden md:block text-[10px] font-bold text-slate-400 uppercase tracking-wider px-3 mb-2">
             Categorías
           </div>
           {categories.map((cat) => {
@@ -346,19 +351,19 @@ export function SettingsSection({
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id as CategoryType)}
-                className={`flex items-center gap-3 w-auto md:w-full px-3 py-2.5 rounded-xl text-left transition-all shrink-0 border md:border-0 ${
+                className={`flex items-center gap-3 w-auto md:w-full px-3 py-2 rounded-lg text-left transition-all shrink-0 border md:border-0 ${
                   isSelected 
-                    ? 'bg-indigo-50 border-indigo-200 text-indigo-700 font-bold shadow-[0_2px_8px_rgba(99,102,241,0.05)]' 
-                    : 'bg-transparent border-gray-100 hover:bg-gray-50 text-gray-600 hover:text-gray-900'
+                    ? 'bg-slate-900 text-white font-semibold shadow-xs' 
+                    : 'bg-transparent border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-900'
                 }`}
                 id={`settings-cat-${cat.id}`}
               >
-                <div className={`p-1.5 rounded-lg transition-colors ${isSelected ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-500'}`}>
-                  <CatIcon className="w-4 h-4" />
+                <div className={`p-1.5 rounded-md transition-colors ${isSelected ? 'bg-slate-800 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                  <CatIcon className="w-3.5 h-3.5" />
                 </div>
                 <div className="flex flex-col">
                   <span className="text-xs font-semibold leading-tight">{cat.label}</span>
-                  <span className="hidden md:inline text-[9px] text-gray-400 font-normal truncate max-w-[150px] leading-tight mt-0.5">{cat.desc}</span>
+                  <span className={`hidden md:inline text-[9px] font-normal truncate max-w-[150px] leading-tight mt-0.5 ${isSelected ? 'text-slate-300' : 'text-slate-400'}`}>{cat.desc}</span>
                 </div>
               </button>
             );
@@ -366,7 +371,7 @@ export function SettingsSection({
         </div>
 
         {/* Content Details Form */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-gray-50/50">
+        <div className="flex-1 overflow-y-auto p-4 sm:p-6 bg-slate-50/50">
           <motion.div
             key={activeCategory}
             initial={{ opacity: 0, y: 10 }}
@@ -376,37 +381,123 @@ export function SettingsSection({
           >
             {/* 1. GENERAL / OFICINA CATEGORY */}
             {activeCategory === 'general' && (
-              <div className="bg-white p-6 rounded-2xl border border-gray-150 shadow-sm space-y-5">
-                <div className="flex items-center gap-2 border-b border-gray-100 pb-3">
-                  <Building2 className="w-5 h-5 text-indigo-500" />
-                  <h3 className="text-sm font-bold text-gray-800">General y Identidad de Oficina</h3>
+              <div className="bg-white p-6 rounded-xl border border-slate-200/80 shadow-xs space-y-5">
+                <div className="flex items-center gap-2 border-b border-slate-100 pb-3">
+                  <Building2 className="w-4 h-4 text-slate-700" />
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-slate-800">General y Identidad de Oficina</h3>
                 </div>
                 
                 <div className="space-y-4">
                   <div>
-                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Nombre de la Financiera</label>
+                    <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">Nombre de la Financiera / Empresa</label>
                     <div className="relative">
-                      <Building2 className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                      <Building2 className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                       <input 
                         type="text" 
-                        className="w-full border border-gray-200 rounded-xl pl-9 pr-3 py-2 text-xs font-semibold text-gray-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all"
+                        className="w-full border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-xs font-semibold text-slate-800 bg-slate-50/50 focus:bg-white outline-none focus:ring-2 focus:ring-slate-900 transition-all placeholder:text-slate-400"
                         placeholder="Ej: Everest"
                         value={tempCompanyName}
                         onChange={(e) => setTempCompanyName(e.target.value)}
                         id="setting-company-name"
                       />
                     </div>
-                    <p className="text-[10px] text-gray-400 mt-1">Se usará como nombre de la App en el panel superior: "Mi Oficina {tempCompanyName}"</p>
+                    <p className="text-[10px] text-slate-400 mt-1">Se usará como nombre de la App en el panel superior y en las credenciales digitales.</p>
+                  </div>
+
+                  <div className="border-t border-slate-100 pt-4">
+                    <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">Logotipo Oficial de la Empresa</label>
+                    <p className="text-[10px] text-slate-400 mb-3">Se incluirá en la cabecera de las credenciales virtuales, gafetes para imprimir y reportes oficiales.</p>
+                    
+                    <div className="flex flex-col sm:flex-row gap-4 items-center">
+                      <div className="flex-1 w-full">
+                        <label className="cursor-pointer bg-slate-50/50 hover:bg-slate-50 border border-dashed border-slate-300 hover:border-slate-400 rounded-xl p-4 flex flex-col items-center justify-center transition-all group">
+                          <Upload className="w-5 h-5 text-slate-400 group-hover:text-slate-600 mb-1.5" />
+                          <span className="text-xs font-semibold text-slate-700">Subir Logo Corporativo</span>
+                          <span className="text-[10px] text-slate-400">PNG o JPG (fondo transparente recomendado)</span>
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onload = (readerEvt) => {
+                                  const img = new Image();
+                                  img.onload = () => {
+                                    const canvas = document.createElement('canvas');
+                                    let width = img.width;
+                                    let height = img.height;
+                                    const maxDim = 600;
+                                    if (width > maxDim || height > maxDim) {
+                                      if (width > height) {
+                                        height = Math.round((height * maxDim) / width);
+                                        width = maxDim;
+                                      } else {
+                                        width = Math.round((width * maxDim) / height);
+                                        height = maxDim;
+                                      }
+                                    }
+                                    canvas.width = width;
+                                    canvas.height = height;
+                                    const ctx = canvas.getContext('2d');
+                                    ctx?.drawImage(img, 0, 0, width, height);
+                                    const compressedDataUrl = canvas.toDataURL('image/png');
+                                    setTempCompanyLogoUrl(compressedDataUrl);
+                                  };
+                                  img.src = readerEvt.target?.result as string;
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }}
+                          />
+                        </label>
+                      </div>
+
+                      {tempCompanyLogoUrl ? (
+                        <div className="relative group shrink-0 bg-slate-100 p-2.5 rounded-xl border border-slate-200 flex items-center justify-center">
+                          <img 
+                            src={tempCompanyLogoUrl} 
+                            alt="Logo Empresa" 
+                            className="max-h-16 max-w-28 object-contain rounded-lg shadow-2xs" 
+                          />
+                          <button 
+                            type="button" 
+                            onClick={() => setTempCompanyLogoUrl('')}
+                            className="absolute -top-2 -right-2 bg-rose-600 text-white p-1 rounded-full shadow-xs hover:bg-rose-700 transition-colors"
+                            title="Eliminar Logo"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="shrink-0 w-24 h-16 bg-slate-100 border border-slate-200 rounded-xl flex flex-col items-center justify-center text-slate-400">
+                          <ImageIcon className="w-5 h-5 mb-0.5 opacity-50" />
+                          <span className="text-[9px]">Sin Logo</span>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="mt-3">
+                      <input 
+                        type="text" 
+                        placeholder="O ingresa URL externa del logo (ej: https://.../logo.png)"
+                        className="w-full border border-slate-200 rounded-lg px-3 py-1.5 text-xs text-slate-700 bg-slate-50/50 focus:bg-white outline-none focus:ring-2 focus:ring-slate-900 transition-all placeholder:text-slate-400"
+                        value={tempCompanyLogoUrl.startsWith('data:') ? '(Imagen subida en base64)' : tempCompanyLogoUrl}
+                        disabled={tempCompanyLogoUrl.startsWith('data:')}
+                        onChange={(e) => setTempCompanyLogoUrl(e.target.value)}
+                      />
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Versión App</label>
+                      <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">Versión App</label>
                       <div className="relative">
-                        <Tag className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                        <Tag className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                         <input 
                           type="text" 
-                          className="w-full border border-gray-200 rounded-xl pl-9 pr-3 py-2 text-xs font-semibold text-gray-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all"
+                          className="w-full border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-xs font-mono font-semibold text-slate-800 bg-slate-50/50 focus:bg-white outline-none focus:ring-2 focus:ring-slate-900 transition-all"
                           placeholder="1.0.0"
                           value={tempAppVersion}
                           onChange={(e) => setTempAppVersion(e.target.value)}
@@ -416,50 +507,50 @@ export function SettingsSection({
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Color del Estado</label>
+                      <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">Color del Estado</label>
                       <div className="flex items-center gap-2">
                         <input 
                           type="color" 
-                          className="w-10 h-9 border border-gray-200 rounded-xl cursor-pointer p-0.5 bg-white shadow-sm"
+                          className="w-9 h-8 border border-slate-200 rounded-lg cursor-pointer p-0.5 bg-white shadow-2xs"
                           value={tempAppStatusColor}
                           onChange={(e) => setTempAppStatusColor(e.target.value)}
                           id="setting-app-status-color"
                         />
-                        <span className="text-xs text-gray-500 font-mono font-semibold uppercase">{tempAppStatusColor}</span>
+                        <span className="text-xs text-slate-600 font-mono font-semibold uppercase">{tempAppStatusColor}</span>
                       </div>
                     </div>
                   </div>
 
-                  <div className="border-t border-gray-100 pt-4">
-                    <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-1.5">Link de la Imprenta</label>
+                  <div className="border-t border-slate-100 pt-4">
+                    <label className="block text-[11px] font-semibold text-slate-600 uppercase tracking-wider mb-1.5">Link de la Imprenta</label>
                     <div className="relative">
-                      <Globe className="absolute left-3 top-2.5 w-4 h-4 text-gray-400" />
+                      <Globe className="absolute left-3 top-2.5 w-4 h-4 text-slate-400" />
                       <input 
                         type="text" 
                         placeholder="https://ejemplo.com/recursos-impresion"
-                        className="w-full border border-gray-200 rounded-xl pl-9 pr-3 py-2 text-xs font-semibold text-gray-700 outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 transition-all"
+                        className="w-full border border-slate-200 rounded-lg pl-9 pr-3 py-2 text-xs font-medium text-slate-800 bg-slate-50/50 focus:bg-white outline-none focus:ring-2 focus:ring-slate-900 transition-all placeholder:text-slate-400"
                         value={tempImprentaUrl}
                         onChange={(e) => setTempImprentaUrl(e.target.value)}
                         id="setting-imprenta-url"
                       />
                     </div>
-                    <p className="text-[10px] text-gray-400 mt-1">Enlace externo (URL) del sistema o portal de imprenta para incrustarlo en la pestaña de Imprenta.</p>
+                    <p className="text-[10px] text-slate-400 mt-1">Enlace externo (URL) del sistema o portal de imprenta para incrustarlo en la pestaña de Imprenta.</p>
                   </div>
 
-                  <div className="border-t border-gray-100 pt-4 flex items-center justify-between">
+                  <div className="border-t border-slate-100 pt-4 flex items-center justify-between">
                     <div>
-                      <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-0.5">Modo Multi-Oficina</label>
-                      <p className="text-[10px] text-gray-400">Habilita la administración de múltiples sucursales con códigos de acceso independientes para control de gastos.</p>
+                      <label className="block text-[11px] font-semibold text-slate-700 uppercase tracking-wider mb-0.5">Modo Multi-Oficina</label>
+                      <p className="text-[10px] text-slate-400">Habilita la administración de múltiples sucursales con códigos de acceso independientes para control de gastos.</p>
                     </div>
                     <button
                       type="button"
                       onClick={() => setTempMultiOfficeEnabled(!tempMultiOfficeEnabled)}
-                      className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                        tempMultiOfficeEnabled ? 'bg-indigo-600' : 'bg-gray-200'
+                      className={`relative inline-flex h-5 w-10 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        tempMultiOfficeEnabled ? 'bg-slate-900' : 'bg-slate-200'
                       }`}
                     >
                       <span
-                        className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-2xs ring-0 transition duration-200 ease-in-out ${
                           tempMultiOfficeEnabled ? 'translate-x-5' : 'translate-x-0'
                         }`}
                       />
