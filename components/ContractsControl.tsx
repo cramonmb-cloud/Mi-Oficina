@@ -37,7 +37,13 @@ import {
   Users
 } from 'lucide-react';
 import { Employee, Plaza, EmployeeContract, PersonnelCategory, ContractTypeConfig, ContractStandardVariables } from '../types';
-import { subscribeToEmployeeContracts, addEmployeeContract, deleteEmployeeContract } from '../services/dbService';
+import { 
+  subscribeToEmployeeContracts, 
+  addEmployeeContract, 
+  deleteEmployeeContract,
+  subscribeToContractTypes,
+  saveContractTypesToCloud
+} from '../services/dbService';
 import jsPDF from 'jspdf';
 
 interface ContractsControlProps {
@@ -335,10 +341,28 @@ export const ContractsControl: React.FC<ContractsControlProps> = ({
     return INITIAL_CONTRACT_TYPES;
   });
 
-  // Save Contract Types automatically to localStorage
+  // Save Contract Types automatically to localStorage and Cloud
   useEffect(() => {
     localStorage.setItem('custom_contract_types_v3', JSON.stringify(contractTypes));
   }, [contractTypes]);
+
+  // Real-time Cloud Synchronization from Firestore
+  useEffect(() => {
+    const unsubscribe = subscribeToContractTypes((cloudTypes) => {
+      if (cloudTypes && cloudTypes.length > 0) {
+        const formatted = cloudTypes.map(item => ({
+          ...item,
+          targetCategories: getContractTargetCategories(item)
+        }));
+        setContractTypes(formatted);
+        localStorage.setItem('custom_contract_types_v3', JSON.stringify(formatted));
+      } else {
+        // If Firestore doc is not initialized yet, push current local/default types to cloud
+        saveContractTypesToCloud(contractTypes).catch(err => console.error("Initial cloud sync error:", err));
+      }
+    });
+    return () => unsubscribe();
+  }, []);
 
   // Selected Active Contract Type ID
   const [activeTypeId, setActiveTypeId] = useState<string>(() => {
@@ -442,38 +466,50 @@ export const ContractsControl: React.FC<ContractsControlProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Helper to update active contract type attributes
+  // Helper to update active contract type attributes with Cloud Persistence
   const updateActiveContractType = (updates: Partial<ContractTypeConfig>) => {
-    setContractTypes(prev => prev.map(ct => {
-      if (ct.id === activeContractType.id) {
-        return { ...ct, ...updates };
-      }
-      return ct;
-    }));
+    setContractTypes(prev => {
+      const next = prev.map(ct => {
+        if (ct.id === activeContractType.id) {
+          return { ...ct, ...updates };
+        }
+        return ct;
+      });
+      saveContractTypesToCloud(next).catch(err => console.error("Error saving contract type to cloud:", err));
+      return next;
+    });
   };
 
-  // Helper to update active contract standard variables
+  // Helper to update active contract standard variables with Cloud Persistence
   const updateActiveStandardVars = (vars: Partial<ContractStandardVariables>) => {
-    setContractTypes(prev => prev.map(ct => {
-      if (ct.id === activeContractType.id) {
-        return {
-          ...ct,
-          standardVars: { ...ct.standardVars, ...vars }
-        };
-      }
-      return ct;
-    }));
+    setContractTypes(prev => {
+      const next = prev.map(ct => {
+        if (ct.id === activeContractType.id) {
+          return {
+            ...ct,
+            standardVars: { ...ct.standardVars, ...vars }
+          };
+        }
+        return ct;
+      });
+      saveContractTypesToCloud(next).catch(err => console.error("Error saving variables/logo to cloud:", err));
+      return next;
+    });
   };
 
-  // Helper to update active contract template
+  // Helper to update active contract template with Cloud Persistence
   const updateActiveTemplate = (newTemplate: string | ((prev: string) => string)) => {
-    setContractTypes(prev => prev.map(ct => {
-      if (ct.id === activeContractType.id) {
-        const updated = typeof newTemplate === 'function' ? newTemplate(ct.template) : newTemplate;
-        return { ...ct, template: updated };
-      }
-      return ct;
-    }));
+    setContractTypes(prev => {
+      const next = prev.map(ct => {
+        if (ct.id === activeContractType.id) {
+          const updated = typeof newTemplate === 'function' ? newTemplate(ct.template) : newTemplate;
+          return { ...ct, template: updated };
+        }
+        return ct;
+      });
+      saveContractTypesToCloud(next).catch(err => console.error("Error saving template to cloud:", err));
+      return next;
+    });
   };
 
   // Selected Employee object
@@ -780,9 +816,14 @@ export const ContractsControl: React.FC<ContractsControlProps> = ({
   };
 
   // Save Custom Machote
-  const handleSaveMachote = () => {
-    setSavedSuccess(true);
-    setTimeout(() => setSavedSuccess(false), 2500);
+  const handleSaveMachote = async () => {
+    try {
+      await saveContractTypesToCloud(contractTypes);
+      setSavedSuccess(true);
+      setTimeout(() => setSavedSuccess(false), 2500);
+    } catch (err) {
+      alert("Error al guardar machote en la nube.");
+    }
   };
 
   // Reset to Default Machote
@@ -793,10 +834,15 @@ export const ContractsControl: React.FC<ContractsControlProps> = ({
   };
 
   // Save Standard Variables
-  const handleSaveStandardVars = (e: React.FormEvent) => {
+  const handleSaveStandardVars = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSavedVarsSuccess(true);
-    setTimeout(() => setSavedVarsSuccess(false), 2500);
+    try {
+      await saveContractTypesToCloud(contractTypes);
+      setSavedVarsSuccess(true);
+      setTimeout(() => setSavedVarsSuccess(false), 2500);
+    } catch (err) {
+      alert("Error al guardar variables en la nube.");
+    }
   };
 
   // Copy Generated Contract to Clipboard
@@ -1223,7 +1269,9 @@ export const ContractsControl: React.FC<ContractsControlProps> = ({
         createdAt: new Date().toISOString().split('T')[0]
       };
 
-      setContractTypes(prev => [...prev, newType]);
+      const updated = [...contractTypes, newType];
+      setContractTypes(updated);
+      saveContractTypesToCloud(updated).catch(err => console.error("Error creating type in cloud:", err));
       setActiveTypeId(newId);
       setSelectedEmpId('');
       setIsTypeModalOpen(false);
@@ -1248,6 +1296,7 @@ export const ContractsControl: React.FC<ContractsControlProps> = ({
     if (window.confirm(`¿Estás seguro de eliminar el tipo de contrato "${activeContractType.name}"? Se perderán sus configuraciones y plantillas personalizadas.`)) {
       const remaining = contractTypes.filter(ct => ct.id !== activeContractType.id);
       setContractTypes(remaining);
+      saveContractTypesToCloud(remaining).catch(err => console.error("Error deleting type in cloud:", err));
       setActiveTypeId(remaining[0].id);
       setSelectedEmpId('');
       setIsTypeModalOpen(false);

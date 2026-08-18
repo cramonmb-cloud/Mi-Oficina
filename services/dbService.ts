@@ -897,4 +897,31 @@ export const deleteEmployeeContract = async (id: string) => {
   return await deleteDoc(doc(db, "employee_contracts", id));
 };
 
+// --- CONTRACT TYPES CLOUD CONFIGURATION ---
 
+export const subscribeToContractTypes = (callback: (types: any[]) => void, onError?: (error: any) => void) => {
+  const docRef = doc(db, "settings", "contract_types_config");
+  return onSnapshot(docRef, (docSnap) => {
+    if (docSnap.exists()) {
+      const data = docSnap.data();
+      if (Array.isArray(data?.contractTypes) && data.contractTypes.length > 0) {
+        callback(data.contractTypes);
+        return;
+      }
+    }
+    callback([]);
+  }, onError || ((err) => console.error("Error subscribing to contract types:", err)));
+};
+
+export const saveContractTypesToCloud = async (contractTypes: any[]) => {
+  try {
+    const docRef = doc(db, "settings", "contract_types_config");
+    await setDoc(docRef, {
+      contractTypes,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+  } catch (err) {
+    console.error("Error saving contract types to cloud:", err);
+    throw err;
+  }
+};
