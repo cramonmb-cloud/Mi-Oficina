@@ -5,6 +5,7 @@ import { Employee, PersonnelCategory, Plaza, VacationRequest } from '../types';
 import { addEmployee, deleteEmployee, updateEmployee, addPlaza, deletePlaza, deleteAllEmployees, saveEmployeesBatch, subscribeToVacationRequests, addVacationRequest, updateVacationRequest, deleteVacationRequest } from '../services/dbService';
 import { VacationsControl } from './VacationsControl';
 import { VacationsBalancesTable } from './VacationsBalancesTable';
+import { ContractsControl } from './ContractsControl';
 import { VirtualCredentialModal } from './VirtualCredentialModal';
 import { calculateCurp, MEXICAN_STATES } from '../services/curpService';
 import QRCode from 'qrcode';
@@ -68,8 +69,8 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
   const [curpStateCode, setCurpStateCode] = useState<string>('JC');
   const [loading, setLoading] = useState(false);
 
-  // Vacations Section State
-  const [activeSubSection, setActiveSubSection] = useState<'directory' | 'vacations' | 'balances'>('directory');
+  // Vacations & Contracts Section State
+  const [activeSubSection, setActiveSubSection] = useState<'directory' | 'vacations' | 'balances' | 'contracts'>('directory');
   const [vacationRequests, setVacationRequests] = useState<VacationRequest[]>([]);
   const [isVacationModalOpen, setIsVacationModalOpen] = useState(false);
 
@@ -719,9 +720,28 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
           <Coins className="w-4 h-4" />
           Saldos y Antigüedad
         </button>
+        <button
+          onClick={() => setActiveSubSection('contracts')}
+          className={`pb-3 text-xs sm:text-sm font-semibold border-b-2 transition-all flex items-center gap-2 ${
+            activeSubSection === 'contracts'
+              ? 'border-slate-900 text-slate-900'
+              : 'border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300'
+          }`}
+        >
+          <FileText className="w-4 h-4" />
+          Contratos
+        </button>
       </div>
 
-      {activeSubSection === 'vacations' ? (
+      {activeSubSection === 'contracts' ? (
+        <ContractsControl 
+          employees={employees} 
+          plazas={plazas} 
+          companyName={companyName} 
+          companyLogoUrl={companyLogoUrl} 
+          currentUser={currentUser} 
+        />
+      ) : activeSubSection === 'vacations' ? (
         <VacationsControl employees={employees} vacationRequests={vacationRequests} currentUser={currentUser} />
       ) : activeSubSection === 'balances' ? (
         <VacationsBalancesTable employees={employees} vacationRequests={vacationRequests} />
