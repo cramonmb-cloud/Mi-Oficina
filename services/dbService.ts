@@ -8,17 +8,18 @@ import {
   doc, 
   query, 
   orderBy, 
-  where,
-  limit,
-  Timestamp,
-  getDoc,
-  setDoc,
-  writeBatch,
-  startAfter,
-  QueryDocumentSnapshot,
-  DocumentData,
-  onSnapshot,
-  Query
+  where, 
+  limit, 
+  Timestamp, 
+  getDoc, 
+  setDoc, 
+  writeBatch, 
+  startAfter, 
+  QueryDocumentSnapshot, 
+  DocumentData, 
+  onSnapshot, 
+  Query, 
+  increment 
 } from "firebase/firestore";
 import { 
   ref, 
@@ -308,6 +309,18 @@ export const updateEmployee = async (id: string, employee: Partial<Employee>) =>
 
 export const deleteEmployee = async (id: string) => {
   return await deleteDoc(doc(db, "employees", id));
+};
+
+export const incrementEmployeeCredentialViews = async (id: string): Promise<void> => {
+  try {
+    const employeeRef = doc(db, "employees", id);
+    await updateDoc(employeeRef, {
+      credentialViewsCount: increment(1),
+      lastCredentialViewAt: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error("Error incrementing credential views:", error);
+  }
 };
 
 // --- BATCH OPERATIONS FOR IMPORT ---

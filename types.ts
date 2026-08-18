@@ -38,6 +38,8 @@ export interface Employee {
   status?: 'ACTIVO' | 'INACTIVO' | 'BAJA';
   vacationDaysEarnedAdjustment?: number | null;
   vacationDaysUsedAdjustment?: number | null;
+  credentialViewsCount?: number; // Contador de consultas / escaneos QR
+  lastCredentialViewAt?: string; // Fecha y hora ISO de la última consulta
 }
 
 export interface Expense {

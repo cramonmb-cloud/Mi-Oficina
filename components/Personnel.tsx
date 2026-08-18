@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Trash2, Phone, Mail, User, MapPin, Filter, Layers, Pencil, Lock, Search, X, Building, Link as LinkIcon, FileSpreadsheet, UploadCloud, AlertTriangle, Download, CheckCircle, RefreshCcw, Users, Clipboard, LayoutGrid, Table, Cake, Loader2, FileText, Calendar, Umbrella, Coins, Clock, Check, AlertCircle, MessageSquare, CreditCard, QrCode, Upload, Copy, ExternalLink, ShieldCheck } from 'lucide-react';
+import { Plus, Trash2, Phone, Mail, User, MapPin, Filter, Layers, Pencil, Lock, Search, X, Building, Link as LinkIcon, FileSpreadsheet, UploadCloud, AlertTriangle, Download, CheckCircle, RefreshCcw, Users, Clipboard, LayoutGrid, Table, Cake, Loader2, FileText, Calendar, Umbrella, Coins, Clock, Check, AlertCircle, MessageSquare, CreditCard, QrCode, Upload, Copy, ExternalLink, ShieldCheck, Eye, Activity } from 'lucide-react';
 import { Employee, PersonnelCategory, Plaza, VacationRequest } from '../types';
 import { addEmployee, deleteEmployee, updateEmployee, addPlaza, deletePlaza, deleteAllEmployees, saveEmployeesBatch, subscribeToVacationRequests, addVacationRequest, updateVacationRequest, deleteVacationRequest } from '../services/dbService';
 import { VacationsControl } from './VacationsControl';
@@ -2187,18 +2187,38 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
                   </div>
                 )}
 
-                {/* PIN de Acceso */}
-                <div className="p-3.5 bg-white rounded-xl border border-slate-200 sm:col-span-2 flex items-center justify-between shadow-2xs">
+                {/* PIN de Acceso y Métricas de Escaneo */}
+                <div className="p-3.5 bg-white rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
                       <Lock className="w-4 h-4" />
                     </div>
                     <div>
-                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">PIN de Acceso a la App</span>
-                      <span className="font-mono font-bold text-slate-900 text-sm">{viewingEmployeeDetails.accessCode || 'Sin PIN asignado'}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">PIN de Acceso</span>
+                      <span className="font-mono font-bold text-slate-900 text-sm">{viewingEmployeeDetails.accessCode || 'Sin PIN'}</span>
                     </div>
                   </div>
-                  <span className="text-[10px] text-slate-400 font-mono">ID: {viewingEmployeeDetails.id.substring(0, 10)}...</span>
+                  <span className="text-[10px] text-slate-400 font-mono">ID: {viewingEmployeeDetails.id.substring(0, 8)}...</span>
+                </div>
+
+                <div className="p-3.5 bg-white rounded-xl border border-slate-200 shadow-2xs flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-emerald-50 text-emerald-600 rounded-lg">
+                      <Eye className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">Consultas Credencial</span>
+                      <span className="font-mono font-bold text-slate-900 text-sm flex items-center gap-1">
+                        <Activity className="w-3.5 h-3.5 text-emerald-600 animate-pulse" />
+                        {viewingEmployeeDetails.credentialViewsCount || 0} <span className="text-[11px] font-semibold text-slate-500 font-sans">veces</span>
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-mono">
+                    {viewingEmployeeDetails.lastCredentialViewAt 
+                      ? new Date(viewingEmployeeDetails.lastCredentialViewAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })
+                      : 'Sin escaneos'}
+                  </span>
                 </div>
 
               </div>

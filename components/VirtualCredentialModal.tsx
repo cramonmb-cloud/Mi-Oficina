@@ -10,7 +10,10 @@ import {
   CreditCard, 
   ExternalLink,
   QrCode,
-  User
+  User,
+  Eye,
+  Activity,
+  Clock
 } from 'lucide-react';
 import { Employee } from '../types';
 import QRCode from 'qrcode';
@@ -242,6 +245,22 @@ export const VirtualCredentialModal: React.FC<VirtualCredentialModalProps> = ({
     }
   };
 
+  const formatLastView = (isoString?: string) => {
+    if (!isoString) return 'Sin consultas registradas aún';
+    try {
+      const d = new Date(isoString);
+      return d.toLocaleString('es-MX', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return 'Sin registro';
+    }
+  };
+
   const isActive = (employee.status || 'ACTIVO') === 'ACTIVO';
 
   return (
@@ -268,8 +287,34 @@ export const VirtualCredentialModal: React.FC<VirtualCredentialModalProps> = ({
         </div>
 
         {/* Modal Body */}
-        <div className="p-5 sm:p-6 space-y-6 overflow-y-auto max-h-[75vh]">
+        <div className="p-5 sm:p-6 space-y-5 overflow-y-auto max-h-[75vh]">
           
+          {/* Métricas de Consulta / Escaneos QR */}
+          <div className="bg-slate-50 border border-slate-200/90 rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-2xs">
+            <div className="flex items-center gap-3 w-full sm:w-auto">
+              <div className="p-3 bg-indigo-50 text-indigo-700 rounded-xl border border-indigo-100 flex items-center justify-center shrink-0">
+                <Eye className="w-5 h-5" />
+              </div>
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-slate-800 uppercase tracking-wider">Historial de Consultas</span>
+                  <span className="px-1.5 py-0.2 bg-emerald-100 text-emerald-800 text-[9px] font-bold rounded-full">En Vivo</span>
+                </div>
+                <p className="text-[11px] text-slate-500 mt-0.5">
+                  Último escaneo: <strong className="text-slate-700">{formatLastView(employee.lastCredentialViewAt)}</strong>
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white px-4 py-2 rounded-xl border border-slate-200 text-center sm:text-right w-full sm:w-auto shrink-0 shadow-2xs">
+              <span className="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Total de Consultas</span>
+              <span className="text-base font-black text-slate-900 font-mono flex items-center justify-center sm:justify-end gap-1.5 mt-0.5">
+                <Activity className="w-4 h-4 text-emerald-600 animate-pulse" />
+                {employee.credentialViewsCount || 0} <span className="text-xs font-bold text-slate-500 font-sans">veces</span>
+              </span>
+            </div>
+          </div>
+
           {/* Card Representation */}
           <div className="relative mx-auto max-w-sm w-full bg-white rounded-2xl border border-slate-200 shadow-md overflow-hidden text-slate-900">
             

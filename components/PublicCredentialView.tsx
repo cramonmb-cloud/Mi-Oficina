@@ -12,7 +12,7 @@ import {
   ExternalLink
 } from 'lucide-react';
 import { Employee, AppSettings } from '../types';
-import { getEmployeeById, getAppSettings } from '../services/dbService';
+import { getEmployeeById, getAppSettings, incrementEmployeeCredentialViews } from '../services/dbService';
 
 interface PublicCredentialViewProps {
   employeeId: string;
@@ -29,7 +29,6 @@ export const PublicCredentialView: React.FC<PublicCredentialViewProps> = ({ empl
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [empData, settsData] = useStateData();
         const emp = await getEmployeeById(employeeId);
         const setts = await getAppSettings();
         setEmployee(emp);
@@ -43,6 +42,11 @@ export const PublicCredentialView: React.FC<PublicCredentialViewProps> = ({ empl
           minute: '2-digit', 
           second: '2-digit' 
         }));
+
+        // Incrementar contador de consultas públicas / escaneos
+        if (emp && emp.id) {
+          incrementEmployeeCredentialViews(emp.id);
+        }
       } catch (e) {
         console.error("Error loading public credential:", e);
       } finally {
