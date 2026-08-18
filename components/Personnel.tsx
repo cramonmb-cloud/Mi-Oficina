@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Trash2, Phone, Mail, User, MapPin, Filter, Layers, Pencil, Lock, Search, X, Building, Link as LinkIcon, FileSpreadsheet, UploadCloud, AlertTriangle, Download, CheckCircle, RefreshCcw, Users, Clipboard, LayoutGrid, Table, Cake, Loader2, FileText, Calendar, Umbrella, Coins, Clock, Check, AlertCircle, MessageSquare, CreditCard, QrCode, Upload } from 'lucide-react';
+import { Plus, Trash2, Phone, Mail, User, MapPin, Filter, Layers, Pencil, Lock, Search, X, Building, Link as LinkIcon, FileSpreadsheet, UploadCloud, AlertTriangle, Download, CheckCircle, RefreshCcw, Users, Clipboard, LayoutGrid, Table, Cake, Loader2, FileText, Calendar, Umbrella, Coins, Clock, Check, AlertCircle, MessageSquare, CreditCard, QrCode, Upload, Copy, ExternalLink, ShieldCheck } from 'lucide-react';
 import { Employee, PersonnelCategory, Plaza, VacationRequest } from '../types';
 import { addEmployee, deleteEmployee, updateEmployee, addPlaza, deletePlaza, deleteAllEmployees, saveEmployeesBatch, subscribeToVacationRequests, addVacationRequest, updateVacationRequest, deleteVacationRequest } from '../services/dbService';
 import { VacationsControl } from './VacationsControl';
@@ -53,6 +53,8 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
   const [searchTerm, setSearchTerm] = useState('');
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
   const [selectedCredentialEmployee, setSelectedCredentialEmployee] = useState<Employee | null>(null);
+  const [viewingEmployeeDetails, setViewingEmployeeDetails] = useState<Employee | null>(null);
+  const [copiedText, setCopiedText] = useState<string | null>(null);
   
   // Filters State
   const [selectedPlazaFilter, setSelectedPlazaFilter] = useState('');
@@ -304,6 +306,53 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
       console.error("Error generating QR for download:", err);
       alert("Error al generar el código QR.");
     }
+  };
+
+  // Helpers para cálculo de edad y tiempo de servicio
+  const calculateAge = (birthDate?: string) => {
+    if (!birthDate) return 'No registrada';
+    try {
+      const birth = new Date(birthDate + 'T00:00:00');
+      if (isNaN(birth.getTime())) return 'Fecha inválida';
+      const today = new Date();
+      let age = today.getFullYear() - birth.getFullYear();
+      const m = today.getMonth() - birth.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) {
+        age--;
+      }
+      return `${age} años`;
+    } catch {
+      return 'No registrada';
+    }
+  };
+
+  const calculateServiceTimeDetailed = (hireDate?: string) => {
+    if (!hireDate) return 'Sin fecha de ingreso';
+    try {
+      const hire = new Date(hireDate + 'T00:00:00');
+      if (isNaN(hire.getTime())) return 'Fecha inválida';
+      const today = new Date();
+      const totalMonths = (today.getFullYear() - hire.getFullYear()) * 12 + (today.getMonth() - hire.getMonth()) + (today.getDate() >= hire.getDate() ? 0 : -1);
+      if (totalMonths < 0) return 'Sin registro';
+      const years = Math.floor(totalMonths / 12);
+      const months = totalMonths % 12;
+      const semesters = Math.floor(totalMonths / 6);
+      
+      let parts: string[] = [];
+      if (years > 0) parts.push(`${years} ${years === 1 ? 'año' : 'años'}`);
+      if (months > 0) parts.push(`${months} ${months === 1 ? 'mes' : 'meses'}`);
+      if (parts.length === 0) parts.push('Menos de 1 mes');
+      
+      return `${parts.join(' y ')} (${semesters} ${semesters === 1 ? 'periodo de 6m cumplido' : 'periodos de 6m cumplidos'})`;
+    } catch {
+      return 'Sin registro';
+    }
+  };
+
+  const handleCopyValue = (val: string, label: string) => {
+    navigator.clipboard.writeText(val);
+    setCopiedText(label);
+    setTimeout(() => setCopiedText(null), 2000);
   };
 
   // Helper para generar email automático
@@ -874,12 +923,25 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
 
                   <div className="flex items-start justify-between mb-3 mt-1">
                     <div className="flex items-center">
-                      <div className="w-10 h-10 bg-slate-100 border border-slate-200 rounded-xl flex items-center justify-center text-xs font-bold text-slate-700 shrink-0">
-                        {(employee.firstName || '?').charAt(0)}{(employee.lastName || '?').charAt(0)}
+                      <div 
+                        onClick={() => setViewingEmployeeDetails(employee)}
+                        className="w-10 h-10 bg-slate-100 border border-slate-200 rounded-xl flex items-center justify-center text-xs font-bold text-slate-700 shrink-0 cursor-pointer overflow-hidden hover:ring-2 hover:ring-indigo-500 transition-all"
+                        title="Ver perfil completo"
+                      >
+                        {employee.photoUrl ? (
+                          <img src={employee.photoUrl} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          `${(employee.firstName || '?').charAt(0)}${(employee.lastName || '?').charAt(0)}`
+                        )}
                       </div>
                       <div className="ml-3 min-w-0">
-                        <h3 className="font-bold text-slate-900 text-sm leading-tight flex items-center flex-wrap gap-1.5 truncate">
-                          <span>
+                        <button
+                          type="button"
+                          onClick={() => setViewingEmployeeDetails(employee)}
+                          className="text-left font-bold text-slate-900 text-sm leading-tight hover:text-indigo-600 hover:underline cursor-pointer flex items-center flex-wrap gap-1.5 truncate group"
+                          title="Clic para ver información completa"
+                        >
+                          <span className="group-hover:text-indigo-600 transition-colors">
                             {employee.firstName || employee.lastName ? `${employee.firstName} ${employee.lastName}` : <span className="text-slate-400 italic">Sin Nombre</span>}
                           </span>
                           <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded border uppercase ${
@@ -891,7 +953,7 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
                           }`}>
                             {employee.status || 'ACTIVO'}
                           </span>
-                        </h3>
+                        </button>
                         <span className="text-xs text-slate-500 font-medium truncate block mt-0.5">{employee.position || 'Sin Cargo'}</span>
                       </div>
                     </div>
@@ -993,12 +1055,27 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
                       <tr key={employee.id} className="hover:bg-slate-50/80 transition-colors group">
                         <td className="py-3 px-4">
                           <div className="flex items-center">
-                            <div className="w-7 h-7 bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-center text-[10px] font-bold text-slate-700 mr-2.5 shrink-0">
-                              {(employee.firstName || '?').charAt(0)}{(employee.lastName || '?').charAt(0)}
+                            <div 
+                              onClick={() => setViewingEmployeeDetails(employee)}
+                              className="w-7 h-7 bg-slate-100 border border-slate-200 rounded-lg flex items-center justify-center text-[10px] font-bold text-slate-700 mr-2.5 shrink-0 cursor-pointer overflow-hidden hover:ring-2 hover:ring-indigo-500 transition-all"
+                              title="Ver perfil completo"
+                            >
+                              {employee.photoUrl ? (
+                                <img src={employee.photoUrl} alt="" className="w-full h-full object-cover" />
+                              ) : (
+                                `${(employee.firstName || '?').charAt(0)}${(employee.lastName || '?').charAt(0)}`
+                              )}
                             </div>
                             <div className="min-w-0">
                               <div className="flex items-center gap-1.5 flex-wrap">
-                                <p className="font-semibold text-slate-900 truncate">{employee.firstName} {employee.lastName}</p>
+                                <button
+                                  type="button"
+                                  onClick={() => setViewingEmployeeDetails(employee)}
+                                  className="text-left font-semibold text-slate-900 hover:text-indigo-600 hover:underline cursor-pointer truncate transition-colors"
+                                  title="Clic para ver información completa"
+                                >
+                                  {employee.firstName} {employee.lastName}
+                                </button>
                                 <span className={`text-[8px] font-bold px-1.5 py-0.2 rounded border uppercase ${
                                   (employee.status || 'ACTIVO') === 'ACTIVO' 
                                     ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
@@ -1927,6 +2004,259 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
           companyLogoUrl={companyLogoUrl}
           onClose={() => setSelectedCredentialEmployee(null)}
         />
+      )}
+
+      {/* DETAILED EMPLOYEE PROFILE / CONSULTATION MODAL */}
+      {viewingEmployeeDetails && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 overflow-y-auto animate-fade-in">
+          <div className="bg-white rounded-2xl max-w-xl w-full border border-slate-200/90 shadow-2xl overflow-hidden flex flex-col my-auto">
+            
+            {/* Modal Header */}
+            <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-slate-900 text-white rounded-lg">
+                  <User className="w-4 h-4" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 tracking-tight">Expediente del Colaborador</h3>
+                  <p className="text-[11px] text-slate-500">Consulta integral de información y estatus</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => setViewingEmployeeDetails(null)}
+                className="p-1.5 hover:bg-slate-200/60 text-slate-400 hover:text-slate-700 rounded-lg transition-colors"
+                title="Cerrar ventana"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-5 overflow-y-auto max-h-[75vh]">
+              
+              {/* Profile Card Header */}
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 p-4 rounded-xl bg-slate-50 border border-slate-200/80">
+                <div className="w-20 h-24 rounded-xl bg-white border border-slate-200 overflow-hidden shrink-0 flex items-center justify-center shadow-2xs">
+                  {viewingEmployeeDetails.photoUrl ? (
+                    <img 
+                      src={viewingEmployeeDetails.photoUrl} 
+                      alt="" 
+                      className="w-full h-full object-cover" 
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center text-slate-400">
+                      <User className="w-8 h-8 opacity-40 mb-1" />
+                      <span className="text-[8px] font-semibold">Sin Foto</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex-1 min-w-0 text-center sm:text-left">
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-1.5 mb-1">
+                    <span className={`px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-md border ${getCategoryColor(viewingEmployeeDetails.category || 'Oficina')}`}>
+                      {viewingEmployeeDetails.category || 'Oficina'}
+                    </span>
+                    <span className={`px-2 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded-md border ${
+                      (viewingEmployeeDetails.status || 'ACTIVO') === 'ACTIVO'
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                        : (viewingEmployeeDetails.status || 'ACTIVO') === 'INACTIVO'
+                        ? 'bg-amber-50 border-amber-200 text-amber-700'
+                        : 'bg-rose-50 border-rose-200 text-rose-700'
+                    }`}>
+                      ● {viewingEmployeeDetails.status || 'ACTIVO'}
+                    </span>
+                  </div>
+
+                  <h2 className="text-lg font-black text-slate-900 tracking-tight leading-tight">
+                    {viewingEmployeeDetails.firstName} {viewingEmployeeDetails.lastName}
+                  </h2>
+                  <p className="text-xs font-semibold text-slate-700 mt-0.5">
+                    {viewingEmployeeDetails.position || 'Colaborador Oficial'}
+                  </p>
+                  <p className="text-xs text-slate-500 font-mono mt-0.5">
+                    Plaza: <span className="font-semibold text-slate-800">{viewingEmployeeDetails.plaza || 'Sin Plaza Asignada'}</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Data Blocks Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
+                
+                {/* CURP Card */}
+                <div className="p-3.5 bg-white rounded-xl border border-slate-200 shadow-2xs space-y-1">
+                  <div className="flex items-center justify-between text-slate-400">
+                    <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                      <CreditCard className="w-3.5 h-3.5 text-slate-500" /> CURP
+                    </span>
+                    {viewingEmployeeDetails.curp && (
+                      <button 
+                        onClick={() => handleCopyValue(viewingEmployeeDetails.curp || '', 'curp')}
+                        className="text-[10px] text-slate-500 hover:text-slate-900 flex items-center gap-1"
+                        title="Copiar CURP"
+                      >
+                        {copiedText === 'curp' ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                        {copiedText === 'curp' ? 'Copiado' : 'Copiar'}
+                      </button>
+                    )}
+                  </div>
+                  <p className="font-mono font-bold text-slate-900 text-sm select-all">
+                    {viewingEmployeeDetails.curp || 'No registrada'}
+                  </p>
+                </div>
+
+                {/* Contacto / WhatsApp */}
+                <div className="p-3.5 bg-white rounded-xl border border-slate-200 shadow-2xs space-y-1">
+                  <div className="flex items-center justify-between text-slate-400">
+                    <span className="text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                      <MessageSquare className="w-3.5 h-3.5 text-emerald-600" /> Celular / WhatsApp
+                    </span>
+                    {viewingEmployeeDetails.email && (
+                      <a
+                        href={`https://wa.me/52${viewingEmployeeDetails.email.replace(/\D/g, '')}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[10px] text-emerald-600 hover:underline flex items-center gap-1 font-semibold"
+                      >
+                        Enviar WA <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
+                  </div>
+                  <p className="font-mono font-bold text-slate-900 text-sm">
+                    {viewingEmployeeDetails.email ? `+52 ${viewingEmployeeDetails.email}` : 'No registrado'}
+                  </p>
+                </div>
+
+                {/* Fecha Nacimiento y Edad */}
+                <div className="p-3.5 bg-white rounded-xl border border-slate-200 shadow-2xs space-y-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                    <Cake className="w-3.5 h-3.5 text-slate-500" /> Nacimiento y Edad
+                  </span>
+                  <p className="font-bold text-slate-900">
+                    {viewingEmployeeDetails.birthDate || 'No registrada'}
+                  </p>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    Edad: <strong className="text-slate-800">{calculateAge(viewingEmployeeDetails.birthDate)}</strong>
+                  </p>
+                </div>
+
+                {/* Fecha Ingreso y Antigüedad */}
+                <div className="p-3.5 bg-white rounded-xl border border-slate-200 shadow-2xs space-y-1">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-slate-500" /> Ingreso y Antigüedad
+                  </span>
+                  <p className="font-bold text-slate-900 font-mono">
+                    {viewingEmployeeDetails.hireDate || 'No registrada'}
+                  </p>
+                  <p className="text-[11px] text-slate-500 font-medium leading-tight">
+                    {calculateServiceTimeDetailed(viewingEmployeeDetails.hireDate)}
+                  </p>
+                </div>
+
+                {/* Estructura / Vinculación si aplica */}
+                {(viewingEmployeeDetails.linkedExecutiveId || viewingEmployeeDetails.linkedSupervisorId || viewingEmployeeDetails.groupName || viewingEmployeeDetails.supervisionName) && (
+                  <div className="p-3.5 bg-slate-50/70 rounded-xl border border-slate-200 sm:col-span-2 space-y-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                      <Users className="w-3.5 h-3.5 text-slate-600" /> Jerarquía y Vinculación
+                    </span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                      {viewingEmployeeDetails.linkedExecutiveId && (
+                        <div className="bg-white p-2 rounded-lg border border-slate-200">
+                          <span className="text-[10px] text-slate-400 block">Ejecutivo Asignado</span>
+                          <span className="font-semibold text-slate-900">{getLinkedName(viewingEmployeeDetails.linkedExecutiveId)}</span>
+                        </div>
+                      )}
+                      {viewingEmployeeDetails.linkedSupervisorId && (
+                        <div className="bg-white p-2 rounded-lg border border-slate-200">
+                          <span className="text-[10px] text-slate-400 block">Supervisora Asignada</span>
+                          <span className="font-semibold text-slate-900">{getLinkedName(viewingEmployeeDetails.linkedSupervisorId)}</span>
+                        </div>
+                      )}
+                      {viewingEmployeeDetails.groupName && (
+                        <div className="bg-white p-2 rounded-lg border border-slate-200">
+                          <span className="text-[10px] text-slate-400 block">Nombre del Grupo</span>
+                          <span className="font-semibold text-slate-900">{viewingEmployeeDetails.groupName}</span>
+                        </div>
+                      )}
+                      {viewingEmployeeDetails.supervisionName && (
+                        <div className="bg-white p-2 rounded-lg border border-slate-200">
+                          <span className="text-[10px] text-slate-400 block">Supervisión</span>
+                          <span className="font-semibold text-slate-900">{viewingEmployeeDetails.supervisionName}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* PIN de Acceso */}
+                <div className="p-3.5 bg-white rounded-xl border border-slate-200 sm:col-span-2 flex items-center justify-between shadow-2xs">
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg">
+                      <Lock className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">PIN de Acceso a la App</span>
+                      <span className="font-mono font-bold text-slate-900 text-sm">{viewingEmployeeDetails.accessCode || 'Sin PIN asignado'}</span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-mono">ID: {viewingEmployeeDetails.id.substring(0, 10)}...</span>
+                </div>
+
+              </div>
+
+            </div>
+
+            {/* Modal Actions Footer */}
+            <div className="px-6 py-3.5 bg-slate-50 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const emp = viewingEmployeeDetails;
+                    setViewingEmployeeDetails(null);
+                    setSelectedCredentialEmployee(emp);
+                  }}
+                  className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+                  title="Ver Credencial Virtual y Gafete"
+                >
+                  <CreditCard className="w-3.5 h-3.5 text-slate-700" />
+                  Credencial Virtual
+                </button>
+                <button
+                  type="button"
+                  onClick={(e) => handleDirectDownloadQr(viewingEmployeeDetails, e)}
+                  className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-800 border border-slate-200 rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-2xs transition-colors cursor-pointer"
+                  title="Descargar solo código QR"
+                >
+                  <QrCode className="w-3.5 h-3.5 text-slate-700" />
+                  Descargar QR
+                </button>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const emp = viewingEmployeeDetails;
+                    setViewingEmployeeDetails(null);
+                    handleOpenModal(emp);
+                  }}
+                  className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 shadow-xs transition-colors cursor-pointer"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  Editar Datos
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setViewingEmployeeDetails(null)}
+                  className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200/60 rounded-lg transition-colors cursor-pointer"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
       )}
     </div>
   );
