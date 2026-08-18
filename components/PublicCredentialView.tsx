@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { 
   ShieldCheck, 
   Building2, 
@@ -24,13 +24,21 @@ export const PublicCredentialView: React.FC<PublicCredentialViewProps> = ({ empl
   const [settings, setSettings] = useState<AppSettings | null>(null);
   const [loading, setLoading] = useState(true);
   const [verifiedTime, setVerifiedTime] = useState<string>('');
+  
+  // Guard para evitar que React ejecute el incremento doble en StrictMode o en re-renderizados
+  const hasIncrementedRef = useRef<boolean>(false);
 
   useEffect(() => {
+    let isMounted = true;
+
     const fetchData = async () => {
       setLoading(true);
       try {
         const emp = await getEmployeeById(employeeId);
         const setts = await getAppSettings();
+        
+        if (!isMounted) return;
+
         setEmployee(emp);
         setSettings(setts);
         const now = new Date();
@@ -43,18 +51,31 @@ export const PublicCredentialView: React.FC<PublicCredentialViewProps> = ({ empl
           second: '2-digit' 
         }));
 
-        // Incrementar contador de consultas públicas / escaneos
-        if (emp && emp.id) {
-          incrementEmployeeCredentialViews(emp.id);
+        // Incrementar contador de consultas públicas / escaneos exactamente UNA vez
+        if (emp && emp.id && !hasIncrementedRef.current) {
+          const sessionKey = `cred_view_recorded_${emp.id}`;
+          const lastRecorded = sessionStorage.getItem(sessionKey);
+          const nowMs = Date.now();
+
+          // Evitar doble conteo si ya se registró en los últimos 30 segundos en la misma sesión
+          if (!lastRecorded || nowMs - parseInt(lastRecorded, 10) > 30000) {
+            hasIncrementedRef.current = true;
+            sessionStorage.setItem(sessionKey, String(nowMs));
+            incrementEmployeeCredentialViews(emp.id);
+          }
         }
       } catch (e) {
         console.error("Error loading public credential:", e);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [employeeId]);
 
   const useStateData = () => [null, null];

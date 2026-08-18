@@ -19,8 +19,8 @@ import {
   ChevronsUpDown,
   Wallet
 } from 'lucide-react';
-import { Employee, VacationRequest } from '../types';
-import { addVacationRequest, updateVacationRequest, deleteVacationRequest, getAppSettings } from '../services/dbService';
+import { Employee, VacationRequest, EmployeeContract } from '../types';
+import { addVacationRequest, updateVacationRequest, deleteVacationRequest, getAppSettings, subscribeToEmployeeContracts } from '../services/dbService';
 import jsPDF from 'jspdf';
 
 const calculateReturnDate = (endDateStr: string): string => {
@@ -122,6 +122,8 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
     confirmBg: 'bg-indigo-600 hover:bg-indigo-700'
   });
 
+  const [contracts, setContracts] = useState<EmployeeContract[]>([]);
+
   useEffect(() => {
     const handleDaysChanged = () => {
       const saved = localStorage.getItem('vacationDaysPer6Months');
@@ -143,12 +145,25 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
     };
   }, []);
 
+  // Subscribe to contracts history for contract-based vacation calculation
+  useEffect(() => {
+    const unsubscribe = subscribeToEmployeeContracts((data) => {
+      setContracts(data);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  // Vacations and Permissions exclusively apply to 'Oficina' staff
+  const officeEmployees = useMemo(() => {
+    return employees.filter(e => e.category === 'Oficina');
+  }, [employees]);
+
   useEffect(() => {
     if (isModalOpen) {
       setSelectedEmpId('');
       setEmpSearchQuery('');
       setStartDate('');
-      setRequestedDays(3); // In the picture it has 3
+      setRequestedDays(3);
       setRequestType('disponibles');
       setNotes('');
       setAuthorizedBy(currentUser ? `${currentUser.firstName} ${currentUser.lastName}` : 'Admin');
@@ -163,16 +178,13 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
   const getMonday = (d: Date) => {
     const date = new Date(d);
     const day = date.getDay();
-    const diff = date.getDate() - day + (day === 0 ? -6 : 1); // Adjust to Monday
+    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
     const monday = new Date(date.setDate(diff));
     monday.setHours(0, 0, 0, 0);
     return monday;
   };
 
-  const [currentWeekMonday, setCurrentWeekMonday] = useState<Date>(() => {
-    const today = new Date();
-    return getMonday(today);
-  });
+  const [currentWeekMonday, setCurrentWeekMonday] = useState<Date>(() => getMonday(new Date()));
 
   const weekDays = useMemo(() => {
     const days = [];
@@ -226,57 +238,99 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
   // Sync search query when employee is selected or changed
   useEffect(() => {
     if (selectedEmpId) {
-      const emp = employees.find(e => e.id === selectedEmpId);
+      const emp = officeEmployees.find(e => e.id === selectedEmpId);
       if (emp) {
         setEmpSearchQuery(`${emp.firstName} ${emp.lastName}`);
       }
     } else {
       setEmpSearchQuery('');
     }
-  }, [selectedEmpId, employees]);
+  }, [selectedEmpId, officeEmployees]);
 
-  // Calculates Vacation Balance for an Employee (6-month renewal contract scheme)
+  // Calculates Vacation Balance for an Employee (Reset per Active Contract or 6-Month Cycle)
   const getEmployeeBalance = (emp: Employee) => {
-    if (!emp.hireDate) return { semestersOfService: 0, yearsOfService: 0, totalEarned: 0, used: 0, balance: 0, text: 'Sin Fecha Ingreso' };
-    
     try {
-      const hire = new Date(emp.hireDate + 'T00:00:00');
-      if (isNaN(hire.getTime())) return { semestersOfService: 0, yearsOfService: 0, totalEarned: 0, used: 0, balance: 0, text: 'Fecha Inválida' };
+      // Find all contracts matching this employee, sorted by generation timestamp or startDate descending
+      const empContracts = contracts
+        .filter(c => c.employeeId === emp.id || (c.employeeName && emp.firstName && emp.lastName && c.employeeName.toLowerCase().includes(emp.firstName.toLowerCase()) && c.employeeName.toLowerCase().includes(emp.lastName.toLowerCase())))
+        .sort((a, b) => {
+          const timeB = new Date(b.generatedAt || b.startDate + 'T00:00:00').getTime();
+          const timeA = new Date(a.generatedAt || a.startDate + 'T00:00:00').getTime();
+          return timeB - timeA;
+        });
       
-      const today = new Date();
-      // Calculate elapsed calendar months
-      const diffMonths = (today.getFullYear() - hire.getFullYear()) * 12 + (today.getMonth() - hire.getMonth()) + (today.getDate() >= hire.getDate() ? 0 : -1);
-      const semestersOfService = Math.max(0, Math.floor(diffMonths / 6));
-      const yearsOfService = semestersOfService * 0.5;
-      
-      // Filter approved requests of type 'disponibles' (subtracted days)
+      const latestContract = empContracts[0] || (emp.contractStartDate ? {
+        startDate: emp.contractStartDate,
+        endDate: emp.contractEndDate || '',
+        durationMonths: 6,
+        generatedAt: emp.lastContractGeneratedAt || emp.contractStartDate + 'T00:00:00',
+        id: emp.lastContractId || ''
+      } : null);
+
+      // Match employee by ID or full name
+      const isEmpMatch = (r: VacationRequest) => {
+        if (r.employeeId && emp.id && r.employeeId === emp.id) return true;
+        if (r.employeeName && emp.firstName && emp.lastName) {
+          const reqName = r.employeeName.toLowerCase().replace(/\s+/g, ' ').trim();
+          const empFullName = `${emp.firstName} ${emp.lastName}`.toLowerCase().replace(/\s+/g, ' ').trim();
+          if (reqName === empFullName || (reqName.includes(emp.firstName.toLowerCase()) && reqName.includes(emp.lastName.toLowerCase()))) {
+            return true;
+          }
+        }
+        return false;
+      };
+
+      // Filter non-rejected requests of type 'disponibles' / 'Vacaciones' (not salary discount)
       const empRequests = vacationRequests.filter(
-        r => r.employeeId === emp.id && r.status === 'APROBADA' && r.type === 'disponibles'
+        r => isEmpMatch(r) && r.status?.toUpperCase() !== 'RECHAZADA' && r.type !== 'descuento'
       );
 
       let totalEarned = 0;
       let used = 0;
+      let statusText = '';
+      let activeContractInfo: { startDate: string; endDate: string; durationMonths: number } | null = null;
 
-      if (accumulationRule === 'reset-on-anniversary') {
-        // Reset on every 6-month contract renewal
-        totalEarned = semestersOfService >= 1 ? daysPer6Months : 0;
+      if (latestContract && latestContract.startDate) {
+        // Contract-based calculation: each new contract grants fresh entitlement (6 days for 6m)
+        const duration = latestContract.durationMonths || 6;
+        totalEarned = Math.max(1, Math.round(daysPer6Months * (duration / 6)));
+        
+        const cStart = latestContract.startDate; // YYYY-MM-DD
+        const cEnd = latestContract.endDate || '';
+        const contractGenTime = latestContract.generatedAt 
+          ? new Date(latestContract.generatedAt).getTime() 
+          : new Date(cStart + 'T00:00:00').getTime();
 
-        const periodStart = new Date(hire);
-        periodStart.setMonth(hire.getMonth() + (semestersOfService * 6));
-        const periodEnd = new Date(hire);
-        periodEnd.setMonth(hire.getMonth() + ((semestersOfService + 1) * 6));
-
+        // Every time a new contract is generated, days reset!
+        // Only count requests created AFTER this new contract was generated (or starting on/after contract start date)
         used = empRequests.reduce((sum, r) => {
-          const reqStart = new Date(r.startDate + 'T00:00:00');
-          if (reqStart >= periodStart && reqStart < periodEnd) {
-            return sum + r.totalDays;
+          if (r.createdAt && latestContract.generatedAt) {
+            const reqTime = new Date(r.createdAt).getTime();
+            // If request was created BEFORE this new contract was generated, it belongs to the previous/expired period
+            if (reqTime < contractGenTime - 30000) {
+              return sum;
+            }
+          } else if (r.startDate < cStart) {
+            return sum;
           }
-          return sum;
+          return sum + r.totalDays;
         }, 0);
-      } else {
-        // Accumulative by completed 6-month periods
-        totalEarned = semestersOfService >= 1 ? semestersOfService * daysPer6Months : 0;
+
+        activeContractInfo = {
+          startDate: cStart,
+          endDate: cEnd,
+          durationMonths: duration
+        };
+        statusText = `Contrato: ${cStart} al ${cEnd || 'Vigente'} (${duration}m)`;
+      } else if (emp.hireDate) {
+        // Fallback if no contract has been generated yet
+        totalEarned = daysPer6Months;
         used = empRequests.reduce((sum, r) => sum + r.totalDays, 0);
+        statusText = 'Sin Contrato Registrado';
+      } else {
+        totalEarned = daysPer6Months;
+        used = empRequests.reduce((sum, r) => sum + r.totalDays, 0);
+        statusText = 'Sin Contrato ni Fecha Ingreso';
       }
 
       // Apply manual adjustments if any
@@ -290,30 +344,29 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
       const balance = totalEarned - used;
       
       return {
-        semestersOfService,
-        yearsOfService,
+        semestersOfService: 1,
+        yearsOfService: 0.5,
         totalEarned,
         used,
         balance,
-        text: semestersOfService === 0 
-          ? 'En 1er periodo (< 6 meses)' 
-          : `${semestersOfService} ${semestersOfService === 1 ? 'periodo de 6m cumplido' : 'periodos de 6m cumplidos'}`
+        text: statusText,
+        activeContract: activeContractInfo
       };
     } catch (e) {
-      return { semestersOfService: 0, yearsOfService: 0, totalEarned: 0, used: 0, balance: 0, text: 'Error' };
+      return { semestersOfService: 0, yearsOfService: 0, totalEarned: 0, used: 0, balance: 0, text: 'Error', activeContract: null };
     }
   };
 
-  // Find currently selected employee info
+  // Find currently selected employee info (constrained to Oficina)
   const activeEmployee = useMemo(() => {
-    return employees.find(e => e.id === selectedEmpId);
-  }, [selectedEmpId, employees]);
+    return officeEmployees.find(e => e.id === selectedEmpId);
+  }, [selectedEmpId, officeEmployees]);
 
   // Compute stats for current employee balance
   const activeEmpBalance = useMemo(() => {
     if (!activeEmployee) return null;
     return getEmployeeBalance(activeEmployee);
-  }, [activeEmployee, vacationRequests]);
+  }, [activeEmployee, vacationRequests, contracts, daysPer6Months]);
 
   // Date calculation based on startDate and requestedDays (excluding Sundays)
   const computedResults = useMemo(() => {
@@ -370,9 +423,9 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
     };
   }, [startDate, requestedDays]);
 
-  // List of employees with details & balance
+  // List of employees with details & balance (only Oficina)
   const employeeBalances = useMemo(() => {
-    const list = employees
+    const list = officeEmployees
       .filter(e => e.status !== 'BAJA')
       .map(emp => {
         const stats = getEmployeeBalance(emp);
@@ -395,7 +448,7 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
       const nameB = `${b.emp.firstName || ''} ${b.emp.lastName || ''}`.toLowerCase().trim();
       return nameA.localeCompare(nameB);
     });
-  }, [employees, vacationRequests, searchTerm]);
+  }, [officeEmployees, vacationRequests, contracts, searchTerm, daysPer6Months]);
 
   // Filtered requests for the history table
   const filteredRequests = useMemo(() => {
@@ -655,7 +708,7 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
         endDate: computedResults.endDateStr,
         totalDays: requestedDays,
         type: requestType,
-        status: 'PENDIENTE',
+        status: 'APROBADA',
         notes: notes.trim() || "",
         registeredBy: authorizedBy.trim() || 'Admin'
       });
@@ -671,7 +724,7 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
         endDate: computedResults.endDateStr,
         totalDays: requestedDays,
         type: requestType,
-        status: 'PENDIENTE',
+        status: 'APROBADA',
         notes: notes.trim() || "",
         registeredBy: authorizedBy.trim() || 'Admin',
         createdAt: new Date().toISOString()
@@ -680,7 +733,7 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
       // Trigger automatic PDF download
       await downloadVacationPDF(createdRequest, emp);
 
-      setSuccess('Solicitud registrada con éxito como PENDIENTE.');
+      setSuccess('Solicitud registrada y autorizada con éxito.');
       
       // Reset form
       setSelectedEmpId('');
@@ -1182,7 +1235,9 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
                   </div>
                   <div className="p-3 bg-gray-50 rounded-xl border border-gray-100/50">
                     <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Días Disponibles</p>
-                    <p className="text-xs font-black text-emerald-600 mt-1">{stats.balance} días</p>
+                    <p className={`text-xs font-black mt-1 ${stats.balance <= 0 ? 'text-red-600 font-extrabold' : 'text-emerald-600'}`}>
+                      {stats.balance} días
+                    </p>
                   </div>
                 </div>
 
@@ -1272,7 +1327,7 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
                       {isEmpDropdownOpen && (
                         <div className="absolute z-50 left-0 right-0 mt-1.5 max-h-52 overflow-y-auto bg-white border border-slate-200 rounded-xl shadow-xl divide-y divide-slate-100 animate-in fade-in-50 duration-100">
                           {(() => {
-                            const filtered = employees
+                            const filtered = officeEmployees
                               .filter(e => e.status !== 'BAJA')
                               .filter(e => {
                                 const fullName = `${e.firstName} ${e.lastName}`.toLowerCase();
@@ -1299,7 +1354,7 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
                             } else {
                               return (
                                 <div className="px-4 py-3 text-xs text-slate-400 italic text-center">
-                                  No se encontraron colaboradores activos
+                                  No se encontraron colaboradores de oficina activos
                                 </div>
                               );
                             }
@@ -1418,17 +1473,17 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
                   <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
                     <div className="bg-slate-50/60 px-5 py-3 border-b border-slate-100 flex items-center gap-2">
                       <User className="w-4 h-4 text-indigo-600" />
-                      <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide">Resumen del Empleado</h4>
+                      <h4 className="text-xs font-extrabold text-slate-800 uppercase tracking-wide">Resumen del Colaborador</h4>
                     </div>
-                    <div className="p-5 space-y-3.5 text-xs">
+                    <div className="p-5 space-y-3 text-xs">
                       <div className="flex justify-between items-center">
                         <span className="text-slate-500 font-semibold">Fecha de Ingreso:</span>
-                        <span className="text-slate-800 font-black text-right">
+                        <span className="text-slate-800 font-bold text-right">
                           {activeEmployee?.hireDate ? (() => {
                             try {
                               const d = new Date(activeEmployee.hireDate + 'T00:00:00');
                               if (isNaN(d.getTime())) return activeEmployee.hireDate;
-                              return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
+                              return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' });
                             } catch {
                               return activeEmployee.hireDate;
                             }
@@ -1436,9 +1491,53 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-slate-500 font-semibold">Vacaciones Restantes:</span>
-                        <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full font-black text-[11px]">
+                        <span className="text-slate-500 font-semibold">Contrato Vigente:</span>
+                        <span className="text-slate-800 font-bold text-right truncate max-w-[150px]">
+                          {activeEmpBalance?.activeContract 
+                            ? `${activeEmpBalance.activeContract.startDate} al ${activeEmpBalance.activeContract.endDate || 'Vig.'}`
+                            : 'Sin contrato formal'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500 font-semibold">Días Otorgados (Contrato):</span>
+                        <span className="text-slate-800 font-bold">
+                          {activeEmpBalance ? activeEmpBalance.totalEarned : 0} días
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500 font-semibold">Días Tomados Previamente:</span>
+                        <span className="text-rose-600 font-bold">
+                          {activeEmpBalance ? activeEmpBalance.used : 0} días
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-slate-500 font-semibold">Saldo Actual Disponible:</span>
+                        <span className="text-slate-900 font-bold">
                           {activeEmpBalance ? activeEmpBalance.balance : 0} días
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-indigo-600 font-semibold">Días a Descontar Ahora:</span>
+                        <span className="text-indigo-700 font-black">
+                          - {requestType === 'disponibles' ? requestedDays : 0} días
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center pt-2 border-t border-slate-100">
+                        <span className="text-slate-800 font-bold">Vacaciones Restantes (Tras Solicitud):</span>
+                        <span className={`px-2.5 py-1 rounded-full font-black text-xs border ${
+                          (() => {
+                            const cur = activeEmpBalance ? activeEmpBalance.balance : 0;
+                            const rem = requestType === 'disponibles' ? cur - requestedDays : cur;
+                            if (rem <= 0) return 'bg-rose-50 text-rose-700 border-rose-200 font-extrabold';
+                            if (rem >= 1 && rem <= 2) return 'bg-amber-50 text-amber-700 border-amber-200 font-bold';
+                            return 'bg-emerald-50 text-emerald-700 border-emerald-200 font-bold';
+                          })()
+                        }`}>
+                          {(() => {
+                            const cur = activeEmpBalance ? activeEmpBalance.balance : 0;
+                            const rem = requestType === 'disponibles' ? cur - requestedDays : cur;
+                            return `${rem} días`;
+                          })()}
                         </span>
                       </div>
                     </div>

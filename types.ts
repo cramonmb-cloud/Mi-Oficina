@@ -34,12 +34,71 @@ export interface Employee {
   // Hierarchy Fields
   linkedExecutiveId?: string; // Para Supervisoras y Promotoras (ID del Ejecutivo)
   linkedSupervisorId?: string; // Para Promotoras (ID de la Supervisora)
+  supervisionName?: string; // Para Supervisoras (Nombre de la Supervisión)
   groupName?: string; // Para Promotoras (Nombre del Grupo)
   status?: 'ACTIVO' | 'INACTIVO' | 'BAJA';
   vacationDaysEarnedAdjustment?: number | null;
   vacationDaysUsedAdjustment?: number | null;
   credentialViewsCount?: number; // Contador de consultas / escaneos QR
   lastCredentialViewAt?: string; // Fecha y hora ISO de la última consulta
+
+  // Legal & Contract Fields
+  address?: string; // Domicilio particular completo (Calle, No., Colonia, CP, Municipio, Estado)
+  civilStatus?: string; // Estado Civil (Soltero(a), Casado(a), etc.)
+  nationality?: string; // Nacionalidad (Mexicana, etc.)
+  gender?: string; // Sexo / Género (masculino / femenino)
+  salary?: number | string; // Salario pactado semanal o mensual
+  contractStartDate?: string; // Fecha inicio de contrato actual YYYY-MM-DD
+  contractEndDate?: string; // Fecha de término / vencimiento del contrato YYYY-MM-DD
+  lastContractId?: string; // ID del último contrato en historial
+  lastContractGeneratedAt?: string; // ISO timestamp de cuando se generó el contrato más reciente
+}
+
+export interface EmployeeContract {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  contractTypeId?: string;
+  contractTypeName?: string;
+  startDate: string; // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
+  durationMonths: number;
+  position: string;
+  salaryNum?: string;
+  salaryLetter?: string;
+  generatedAt: string; // ISO
+  generatedBy?: string;
+  pdfBase64?: string; // Data URL or base64 PDF
+  fileName?: string;
+  notes?: string;
+}
+
+export interface ContractStandardVariables {
+  nombresComercialesPatron: string;
+  nombreRepresentanteLegal: string;
+  domicilioCompletoPatron: string;
+  jurisdiccionMunicipioEstado: string;
+  horarioEntrada: string;
+  horarioSalida: string;
+  horaInicioComida: string;
+  horaFinComida: string;
+  salarioNumero: string;
+  salarioLetra: string;
+  nacionalidadDefault: string;
+  estadoCivilDefault: string;
+  contractLogoUrl?: string;
+}
+
+export interface ContractTypeConfig {
+  id: string;
+  name: string;
+  targetCategory?: PersonnelCategory;
+  targetCategories: PersonnelCategory[];
+  description: string;
+  defaultPosition: string;
+  template: string;
+  standardVars: ContractStandardVariables;
+  createdAt?: string;
 }
 
 export interface Expense {

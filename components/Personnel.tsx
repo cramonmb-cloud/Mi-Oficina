@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { Plus, Trash2, Phone, Mail, User, MapPin, Filter, Layers, Pencil, Lock, Search, X, Building, Link as LinkIcon, FileSpreadsheet, UploadCloud, AlertTriangle, Download, CheckCircle, RefreshCcw, Users, Clipboard, LayoutGrid, Table, Cake, Loader2, FileText, Calendar, Umbrella, Coins, Clock, Check, AlertCircle, MessageSquare, CreditCard, QrCode, Upload, Copy, ExternalLink, ShieldCheck, Eye, Activity } from 'lucide-react';
+import { Plus, Trash2, Phone, Mail, User, MapPin, Filter, Layers, Pencil, Lock, Search, X, Building, Link as LinkIcon, FileSpreadsheet, UploadCloud, AlertTriangle, Download, CheckCircle, RefreshCcw, Users, Clipboard, LayoutGrid, Table, Cake, Loader2, FileText, Calendar, Umbrella, Coins, Clock, Check, AlertCircle, MessageSquare, CreditCard, QrCode, Upload, Copy, ExternalLink, ShieldCheck, Eye, Activity, Briefcase } from 'lucide-react';
 import { Employee, PersonnelCategory, Plaza, VacationRequest } from '../types';
 import { addEmployee, deleteEmployee, updateEmployee, addPlaza, deletePlaza, deleteAllEmployees, saveEmployeesBatch, subscribeToVacationRequests, addVacationRequest, updateVacationRequest, deleteVacationRequest } from '../services/dbService';
 import { VacationsControl } from './VacationsControl';
@@ -39,8 +39,15 @@ const INITIAL_FORM_STATE = {
   accessCode: '',
   linkedExecutiveId: '',
   linkedSupervisorId: '',
+  supervisionName: '',
   groupName: '',
-  status: 'ACTIVO' as 'ACTIVO' | 'INACTIVO' | 'BAJA'
+  status: 'ACTIVO' as 'ACTIVO' | 'INACTIVO' | 'BAJA',
+  // Contract & Legal fields
+  address: '',
+  civilStatus: 'Soltero(a)',
+  nationality: 'Mexicana',
+  gender: 'masculino',
+  salary: ''
 };
 
 import { getLocalDateString } from '../lib/dateUtils';
@@ -68,6 +75,7 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
   const [curpGender, setCurpGender] = useState<'H' | 'M'>('H');
   const [curpStateCode, setCurpStateCode] = useState<string>('JC');
   const [loading, setLoading] = useState(false);
+  const [modalTab, setModalTab] = useState<'general' | 'contract'>('general');
 
   // Vacations & Contracts Section State
   const [activeSubSection, setActiveSubSection] = useState<'directory' | 'vacations' | 'balances' | 'contracts'>('directory');
@@ -247,7 +255,12 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
         accessCode: emp.accessCode || '',
         category: emp.category || 'Promotoras',
         status: emp.status || 'ACTIVO',
-        curp: emp.curp || ''
+        curp: emp.curp || '',
+        address: emp.address || '',
+        civilStatus: emp.civilStatus || 'Soltero(a)',
+        nationality: emp.nationality || 'Mexicana',
+        gender: emp.gender || (emp.curp && emp.curp[10] === 'M' ? 'femenino' : 'masculino'),
+        salary: emp.salary !== undefined && emp.salary !== null ? String(emp.salary) : ''
       });
 
       // Try extracting gender and state from existing CURP
@@ -264,6 +277,7 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
       setCurpGender('H');
       setCurpStateCode('JC');
     }
+    setModalTab('general');
     setIsModalOpen(true);
   };
 
@@ -427,7 +441,12 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
         birthDate: formData.birthDate || '',
         hireDate: formData.hireDate || '',
         groupName: formData.groupName || '',
-        status: formData.status || 'ACTIVO'
+        status: formData.status || 'ACTIVO',
+        address: formData.address || '',
+        civilStatus: formData.civilStatus || 'Soltero(a)',
+        nationality: formData.nationality || 'Mexicana',
+        gender: formData.gender || (curpGender === 'M' ? 'femenino' : 'masculino'),
+        salary: formData.salary || ''
       };
 
       if (editingId) {
@@ -1067,6 +1086,7 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
                       </th>
                       <th className="py-3 px-4">Vinculación</th>
                       <th className="py-3 px-4">Fecha Ingreso</th>
+                      <th className="py-3 px-4">Fecha Término</th>
                       <th className="py-3 px-4 text-right">Acciones</th>
                     </tr>
                   </thead>
@@ -1170,6 +1190,46 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
                         </td>
                         <td className="py-3 px-4 text-slate-500 font-mono">
                           {employee.hireDate || '-'}
+                        </td>
+                        <td className="py-3 px-4">
+                          {employee.contractEndDate ? (
+                            <div className="flex flex-col">
+                              <span className="font-mono font-bold text-slate-900 text-xs">
+                                {employee.contractEndDate}
+                              </span>
+                              {(() => {
+                                try {
+                                  const today = new Date();
+                                  today.setHours(0, 0, 0, 0);
+                                  const end = new Date(employee.contractEndDate + 'T00:00:00');
+                                  const diffDays = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                                  if (diffDays < 0) {
+                                    return (
+                                      <span className="text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-1.5 py-0.2 rounded w-fit mt-0.5">
+                                        🔴 Vencido ({Math.abs(diffDays)}d)
+                                      </span>
+                                    );
+                                  } else if (diffDays <= 30) {
+                                    return (
+                                      <span className="text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-1.5 py-0.2 rounded w-fit mt-0.5">
+                                        ⚠️ Vence en {diffDays}d
+                                      </span>
+                                    );
+                                  } else {
+                                    return (
+                                      <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded w-fit mt-0.5">
+                                        🟢 Vigente ({Math.round(diffDays / 30)}m)
+                                      </span>
+                                    );
+                                  }
+                                } catch {
+                                  return null;
+                                }
+                              })()}
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 text-[11px] italic">Sin Contrato</span>
+                          )}
                         </td>
                         <td className="py-3 px-4 text-right">
                           <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1460,36 +1520,66 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
         </div>
       )}
 
-      {/* EMPLOYEE MODAL */}
+      {/* EMPLOYEE MODAL (COMPACTO, PROFESIONAL, VISTA UNIFICADA) */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center z-50 p-4 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl w-full max-w-3xl shadow-xl max-h-[92vh] flex flex-col overflow-hidden border border-slate-200">
-            {/* Modal Header */}
-            <div className="bg-slate-900 px-6 py-4 text-white flex items-center justify-between shrink-0">
-              <div className="flex items-center gap-2.5">
-                <User className="w-5 h-5 text-slate-300" />
-                <div>
-                  <h3 className="text-base font-bold tracking-tight">
-                    {editingId ? 'Editar Colaborador' : 'Registrar Nuevo Colaborador'}
-                  </h3>
-                  <p className="text-xs text-slate-400">Completa la información del personal para el sistema.</p>
+        <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center z-50 p-3 sm:p-4 backdrop-blur-xs">
+          <div className="bg-white rounded-xl w-full max-w-3xl shadow-xl max-h-[92vh] flex flex-col overflow-hidden border border-slate-200">
+            
+            {/* Header */}
+            <div className="bg-slate-900 px-5 py-3.5 text-white flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-slate-800 border border-slate-700 flex items-center justify-center text-white font-bold text-xs shrink-0 overflow-hidden">
+                  {formData.photoUrl ? (
+                    <img src={formData.photoUrl} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <span>{(formData.firstName?.charAt(0) || 'C')}{(formData.lastName?.charAt(0) || '')}</span>
+                  )}
+                </div>
+
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-bold text-white tracking-tight truncate">
+                      {editingId ? `${formData.firstName || ''} ${formData.lastName || ''}`.trim() || 'Editar Colaborador' : 'Registrar Nuevo Colaborador'}
+                    </h3>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-slate-800 text-slate-300 border border-slate-700 shrink-0">
+                      {formData.category || 'Oficina'}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-slate-400 truncate">
+                    {editingId ? 'Actualización de expediente y datos de acceso' : 'Captura de datos generales, acceso y contrato laboral'}
+                  </p>
                 </div>
               </div>
-              <button 
-                type="button"
-                onClick={() => setIsModalOpen(false)}
-                className="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-1.5 rounded-lg transition-all text-xs w-7 h-7 flex items-center justify-center font-bold"
-              >
-                ✕
-              </button>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <select
+                  className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800 text-slate-200 border border-slate-700 outline-none focus:ring-1 focus:ring-slate-500 cursor-pointer hidden sm:block"
+                  value={formData.status || 'ACTIVO'}
+                  onChange={e => setFormData(prev => ({...prev, status: e.target.value as any}))}
+                >
+                  <option value="ACTIVO">🟢 ACTIVO</option>
+                  <option value="INACTIVO">🟡 INACTIVO</option>
+                  <option value="BAJA">🔴 BAJA</option>
+                </select>
+
+                <button 
+                  type="button"
+                  onClick={() => setIsModalOpen(false)}
+                  className="text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 p-1.5 rounded-lg transition-colors text-xs w-7 h-7 flex items-center justify-center font-bold cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
-            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto custom-scrollbar p-6 space-y-4 bg-slate-50/50">
+            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto custom-scrollbar p-5 space-y-4 bg-slate-50/50">
               
-              {/* Category Selector */}
-              <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs">
-                <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2 block">Categoría de Personal</label>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50 p-1 rounded-lg border border-slate-200">
+              {/* Category Segmented Selector */}
+              <div className="bg-white p-3 rounded-lg border border-slate-200 shadow-2xs">
+                <label className="text-[10px] font-bold text-slate-600 uppercase tracking-wider mb-1.5 block">
+                  Categoría de Personal
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                   {CATEGORIES.map(cat => {
                     const isSelected = formData.category === cat;
                     return (
@@ -1497,520 +1587,591 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
                         key={cat}
                         type="button"
                         onClick={() => setFormData({...formData, category: cat})}
-                        className={`py-1.5 px-3 rounded-md text-xs font-semibold transition-all flex items-center justify-center gap-1.5 ${
+                        className={`py-1.5 px-2.5 rounded-lg text-xs font-semibold transition-all flex items-center justify-center cursor-pointer ${
                           isSelected 
-                            ? 'bg-white text-slate-900 shadow-xs border border-slate-200' 
-                            : 'text-slate-500 hover:text-slate-800 hover:bg-slate-100 border border-transparent'
+                            ? 'bg-slate-900 text-white shadow-2xs' 
+                            : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200'
                         }`}
                       >
-                        {cat === 'Oficina' && <Building className="w-3.5 h-3.5" />}
-                        {cat === 'Ejecutivos' && <User className="w-3.5 h-3.5" />}
-                        {cat === 'Supervisoras' && <Users className="w-3.5 h-3.5" />}
-                        {cat === 'Promotoras' && <Layers className="w-3.5 h-3.5" />}
-                        <span>{cat}</span>
+                        {cat}
                       </button>
                     );
                   })}
                 </div>
               </div>
 
-              {/* DYNAMIC HIERARCHY FIELDS - NO HEADERS OR COMPLEX BOX LABELS */}
+              {/* Dynamic Hierarchy Fields (Only for Supervisoras / Promotoras) */}
               {formData.category === 'Supervisoras' && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-white p-4 rounded-xl border border-gray-150 shadow-sm">
-                  <div className="relative">
-                    <label className="text-xs font-bold text-gray-600 mb-1 block">Ejecutivo Vinculado</label>
-                    <div className="relative">
-                      <LinkIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500" />
-                      <select 
-                        className="pl-10 pr-3 py-2.5 w-full border border-gray-200 rounded-xl bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm"
-                        value={formData.linkedExecutiveId || ''}
-                        onChange={e => {
-                          const execId = e.target.value;
-                          const executive = availableExecutives.find(ex => ex.id === execId);
-                          setFormData({
-                            ...formData, 
-                            linkedExecutiveId: execId,
-                            plaza: executive?.plaza || formData.plaza
-                          });
-                        }}
-                      >
-                        <option value="">-- Seleccionar Ejecutivo --</option>
-                        {availableExecutives.map(ex => (
-                          <option key={ex.id} value={ex.id}>{ex.firstName} {ex.lastName}</option>
-                        ))}
-                      </select>
-                    </div>
+                <div className="p-3 bg-indigo-50/50 border border-indigo-200/80 rounded-lg grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-bold text-indigo-900 uppercase tracking-wider mb-1 block">
+                      Ejecutivo Vinculado
+                    </label>
+                    <select 
+                      className="w-full px-2.5 py-1.5 border border-indigo-200 rounded-lg bg-white text-slate-900 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-600 shadow-2xs cursor-pointer"
+                      value={formData.linkedExecutiveId || ''}
+                      onChange={e => {
+                        const execId = e.target.value;
+                        const executive = availableExecutives.find(ex => ex.id === execId);
+                        setFormData({
+                          ...formData, 
+                          linkedExecutiveId: execId,
+                          plaza: executive?.plaza || formData.plaza
+                        });
+                      }}
+                    >
+                      <option value="">-- Seleccionar Ejecutivo --</option>
+                      {availableExecutives.map(ex => (
+                        <option key={ex.id} value={ex.id}>{ex.firstName} {ex.lastName}</option>
+                      ))}
+                    </select>
                   </div>
-                  <div className="relative">
-                    <label className="text-xs font-bold text-gray-600 mb-1 block">Nombre de Supervisión</label>
-                    <div className="relative">
-                      <Users className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500" />
-                      <input 
-                        type="text"
-                        placeholder="Ej. Supervisión Norte"
-                        className="pl-10 pr-3 py-2.5 w-full border border-gray-200 rounded-xl bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm placeholder-gray-400"
-                        value={formData.supervisionName || ''}
-                        onChange={e => setFormData({...formData, supervisionName: e.target.value})}
-                      />
-                    </div>
+
+                  <div>
+                    <label className="text-[10px] font-bold text-indigo-900 uppercase tracking-wider mb-1 block">
+                      Nombre de Supervisión
+                    </label>
+                    <input 
+                      type="text"
+                      placeholder="Ej. Supervisión Norte"
+                      className="w-full px-2.5 py-1.5 border border-indigo-200 rounded-lg bg-white text-slate-900 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-600 shadow-2xs"
+                      value={formData.supervisionName || ''}
+                      onChange={e => setFormData({...formData, supervisionName: e.target.value})}
+                    />
                   </div>
                 </div>
               )}
 
               {formData.category === 'Promotoras' && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-white p-4 rounded-xl border border-gray-150 shadow-sm">
-                  <div className="relative">
-                    <label className="text-xs font-bold text-gray-600 mb-1 block">Supervisora</label>
-                    <div className="relative">
-                      <LinkIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500" />
-                      <select 
-                        className="pl-10 pr-3 py-2.5 w-full border border-gray-200 rounded-xl bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm"
-                        value={formData.linkedSupervisorId || ''}
-                        onChange={e => handleSupervisorChange(e.target.value)}
-                      >
-                        <option value="">-- Seleccionar --</option>
-                        {availableSupervisors.map(sv => (
-                          <option key={sv.id} value={sv.id}>{sv.supervisionName || `${sv.firstName} ${sv.lastName}`}</option>
-                        ))}
-                      </select>
-                    </div>
+                <div className="p-3 bg-indigo-50/50 border border-indigo-200/80 rounded-lg grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-[10px] font-bold text-indigo-900 uppercase tracking-wider mb-1 block">
+                      Supervisora Vinculada
+                    </label>
+                    <select 
+                      className="w-full px-2.5 py-1.5 border border-indigo-200 rounded-lg bg-white text-slate-900 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-600 shadow-2xs cursor-pointer"
+                      value={formData.linkedSupervisorId || ''}
+                      onChange={e => handleSupervisorChange(e.target.value)}
+                    >
+                      <option value="">-- Seleccionar Supervisora --</option>
+                      {availableSupervisors.map(sv => (
+                        <option key={sv.id} value={sv.id}>{sv.supervisionName || `${sv.firstName} ${sv.lastName}`}</option>
+                      ))}
+                    </select>
                   </div>
 
-                  <div className="relative">
-                    <label className="text-xs font-bold text-gray-400 mb-1 block">Ejecutivo (Auto)</label>
-                    <div className="relative">
-                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <select 
-                        disabled
-                        className="pl-10 pr-3 py-2.5 w-full border border-gray-150 rounded-xl bg-gray-50 text-gray-400 text-sm outline-none cursor-not-allowed"
-                        value={formData.linkedExecutiveId || ''}
-                      >
-                        <option value="">-- Automático --</option>
-                        {availableExecutives.map(ex => (
-                          <option key={ex.id} value={ex.id}>{ex.firstName} {ex.lastName}</option>
-                        ))}
-                      </select>
-                    </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">
+                      Ejecutivo (Auto)
+                    </label>
+                    <input 
+                      type="text"
+                      disabled
+                      value={availableExecutives.find(ex => ex.id === formData.linkedExecutiveId)?.firstName ? `${availableExecutives.find(ex => ex.id === formData.linkedExecutiveId)?.firstName} ${availableExecutives.find(ex => ex.id === formData.linkedExecutiveId)?.lastName}` : 'Automático por Supervisora'}
+                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-slate-100 text-slate-500 text-xs font-medium outline-none cursor-not-allowed truncate"
+                    />
                   </div>
 
-                  <div className="relative">
-                    <label className="text-xs font-bold text-gray-600 mb-1 block">Nombre del Grupo</label>
-                    <div className="relative">
-                      <Users className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500" />
-                      <input 
-                        type="text"
-                        placeholder="Ej. Rosy Colima"
-                        className="pl-10 pr-3 py-2.5 w-full border border-gray-200 rounded-xl bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm placeholder-gray-400"
-                        value={formData.groupName || ''}
-                        onChange={e => setFormData({...formData, groupName: e.target.value})}
-                      />
-                    </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-indigo-900 uppercase tracking-wider mb-1 block">
+                      Nombre del Grupo
+                    </label>
+                    <input 
+                      type="text"
+                      placeholder="Ej. Rosy Colima"
+                      className="w-full px-2.5 py-1.5 border border-indigo-200 rounded-lg bg-white text-slate-900 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-indigo-600 shadow-2xs"
+                      value={formData.groupName || ''}
+                      onChange={e => setFormData({...formData, groupName: e.target.value})}
+                    />
                   </div>
                 </div>
               )}
 
-              {/* HIGHLY PROFESSIONAL COMPACT FORM GRID */}
-              <div className="bg-white p-5 rounded-xl border border-gray-150 shadow-sm space-y-4">
-                <div className="text-xs font-bold text-gray-700 uppercase tracking-wider border-b pb-2 flex items-center gap-2">
-                  <Clipboard className="w-4 h-4 text-indigo-600" /> Datos Generales y de Acceso
+              {/* SECCIÓN 1: DATOS GENERALES Y ACCESO */}
+              <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-2xs space-y-3">
+                <div className="flex items-center gap-1.5 pb-2 border-b border-slate-100 text-slate-800">
+                  <User className="w-3.5 h-3.5 text-slate-600" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider">1. Datos Generales y Acceso</span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4.5">
-                  {/* Nombre - ONLY REQUIRED FIELD */}
-                  <div className="relative">
-                    <label className="text-xs font-bold text-gray-600 mb-1 block">
-                      Nombre(s) <span className="text-red-500 font-extrabold ml-0.5">*</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+                  {/* Nombre(s) */}
+                  <div className="sm:col-span-2">
+                    <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Nombre(s) <span className="text-rose-500">*</span>
                     </label>
-                    <div className="relative">
-                      <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input 
-                        type="text"
-                        placeholder="Escribe el nombre completo" 
-                        className="pl-10 pr-3 py-2.5 w-full border border-gray-200 rounded-xl bg-white text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm font-semibold" 
-                        value={formData.firstName} 
-                        onChange={e => {
-                          const val = e.target.value;
-                          const autoCurp = calculateCurp({
-                            firstName: val,
-                            lastName: formData.lastName || '',
-                            birthDate: formData.birthDate || '',
-                            gender: curpGender,
-                            stateCode: curpStateCode
-                          });
-                          setFormData(prev => ({
-                            ...prev, 
-                            firstName: val,
-                            ...(autoCurp ? { curp: autoCurp } : {})
-                          }));
-                        }} 
-                        required
-                      />
-                    </div>
+                    <input 
+                      type="text"
+                      placeholder="Nombre(s)" 
+                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-slate-50/50 focus:bg-white text-slate-900 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all shadow-2xs" 
+                      value={formData.firstName || ''} 
+                      onChange={e => {
+                        const val = e.target.value;
+                        const autoCurp = calculateCurp({
+                          firstName: val,
+                          lastName: formData.lastName || '',
+                          birthDate: formData.birthDate || '',
+                          gender: curpGender,
+                          stateCode: curpStateCode
+                        });
+                        setFormData(prev => ({
+                          ...prev, 
+                          firstName: val,
+                          ...(autoCurp ? { curp: autoCurp } : {})
+                        }));
+                      }} 
+                      required
+                    />
                   </div>
 
-                  {/* Apellidos */}
-                  <div className="relative">
-                    <label className="text-xs font-bold text-gray-600 mb-1 block">Apellido(s)</label>
-                    <div className="relative">
-                      <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input 
-                        type="text"
-                        placeholder="Escribe los apellidos completos" 
-                        className="pl-10 pr-3 py-2.5 w-full border border-gray-200 rounded-xl bg-white text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm font-semibold" 
-                        value={formData.lastName} 
-                        onChange={e => {
-                          const val = e.target.value;
-                          const autoCurp = calculateCurp({
-                            firstName: formData.firstName || '',
-                            lastName: val,
-                            birthDate: formData.birthDate || '',
-                            gender: curpGender,
-                            stateCode: curpStateCode
-                          });
-                          setFormData(prev => ({
-                            ...prev, 
-                            lastName: val,
-                            ...(autoCurp ? { curp: autoCurp } : {})
-                          }));
-                        }} 
-                      />
-                    </div>
+                  {/* Apellido(s) */}
+                  <div className="sm:col-span-2">
+                    <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Apellido(s)
+                    </label>
+                    <input 
+                      type="text"
+                      placeholder="Apellidos completos" 
+                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-slate-50/50 focus:bg-white text-slate-900 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all shadow-2xs" 
+                      value={formData.lastName || ''} 
+                      onChange={e => {
+                        const val = e.target.value;
+                        const autoCurp = calculateCurp({
+                          firstName: formData.firstName || '',
+                          lastName: val,
+                          birthDate: formData.birthDate || '',
+                          gender: curpGender,
+                          stateCode: curpStateCode
+                        });
+                        setFormData(prev => ({
+                          ...prev, 
+                          lastName: val,
+                          ...(autoCurp ? { curp: autoCurp } : {})
+                        }));
+                      }} 
+                    />
                   </div>
 
                   {/* Celular / WhatsApp */}
-                  <div className="relative">
-                    <label className="text-xs font-bold text-gray-600 mb-1 block">Celular / WhatsApp (Usuario)</label>
-                    <div className="relative">
-                      <MessageSquare className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-emerald-500" />
-                      <input 
-                        type="text" 
-                        maxLength={10}
-                        placeholder="10 dígitos (Ej: 5551234567)" 
-                        className="pl-10 pr-3 py-2.5 w-full border border-gray-200 rounded-xl bg-white text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm font-mono" 
-                        value={formData.email} 
-                        onChange={e => {
-                          const val = e.target.value.replace(/\D/g, '').slice(0, 10);
-                          setFormData(prev => ({...prev, email: val}));
-                        }} 
-                      />
-                    </div>
-                  </div>
-
-                  {/* Fecha Nacimiento */}
-                  <div className="relative">
-                    <label className="text-xs font-bold text-gray-600 mb-1 block">Fecha de Nacimiento</label>
-                    <div className="relative">
-                      <Cake className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input 
-                        type="date" 
-                        className="pl-10 pr-3 py-2.5 w-full border border-gray-200 rounded-xl bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm" 
-                        value={formData.birthDate} 
-                        onChange={e => {
-                          const val = e.target.value;
-                          const autoCurp = calculateCurp({
-                            firstName: formData.firstName || '',
-                            lastName: formData.lastName || '',
-                            birthDate: val,
-                            gender: curpGender,
-                            stateCode: curpStateCode
-                          });
-                          setFormData(prev => ({
-                            ...prev, 
-                            birthDate: val,
-                            ...(autoCurp ? { curp: autoCurp } : {})
-                          }));
-                        }} 
-                      />
-                    </div>
-                  </div>
-
-                  {/* Puesto / Cargo (only for Office/Execs) */}
-                  {!['Supervisoras', 'Promotoras'].includes(formData.category || '') ? (
-                    <div className="relative">
-                      <label className="text-xs font-bold text-gray-600 mb-1 block">Puesto / Cargo</label>
-                      <div className="relative">
-                        <Clipboard className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input 
-                          type="text"
-                          placeholder="Ej. Coordinador General" 
-                          className="pl-10 pr-3 py-2.5 w-full border border-gray-200 rounded-xl bg-white text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm" 
-                          value={formData.position} 
-                          onChange={e => setFormData(prev => ({...prev, position: e.target.value}))} 
-                        />
-                      </div>
-                    </div>
-                  ) : null}
-
-                  {/* Plaza */}
-                  <div className="relative">
-                    <label className="text-xs font-bold text-gray-600 mb-1 block">Plaza</label>
-                    <div className="relative">
-                      <MapPin className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      {plazas.length > 0 ? (
-                        <select 
-                          className="pl-10 pr-3 py-2.5 w-full border border-gray-200 rounded-xl bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm font-semibold"
-                          value={formData.plaza} 
-                          onChange={e => setFormData(prev => ({...prev, plaza: e.target.value}))}
-                        >
-                          <option value="">-- Seleccionar Plaza --</option>
-                          {plazas.map(p => (
-                            <option key={p.id} value={p.name}>{p.name}</option>
-                          ))}
-                        </select>
-                      ) : (
-                        <div className="text-xs text-red-500 border border-red-200 bg-red-50 p-2.5 rounded-xl">
-                          No hay plazas. Créalas en "Gestionar Plazas".
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* CURP con cálculo automático */}
-                  <div className="relative md:col-span-2 bg-slate-50/70 p-3.5 rounded-xl border border-slate-200 space-y-2.5">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
-                      <div>
-                        <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                          <CreditCard className="w-3.5 h-3.5 text-slate-600" /> CURP (Cálculo Automático Oficial)
-                        </label>
-                        <p className="text-[10px] text-slate-400">Se genera automáticamente con base en el Nombre, Apellidos y Fecha de Nacimiento.</p>
-                      </div>
-                      
-                      <button
-                        type="button"
-                        onClick={() => {
-                          const auto = calculateCurp({
-                            firstName: formData.firstName || '',
-                            lastName: formData.lastName || '',
-                            birthDate: formData.birthDate || '',
-                            gender: curpGender,
-                            stateCode: curpStateCode
-                          });
-                          if (auto) {
-                            setFormData(prev => ({ ...prev, curp: auto }));
-                          } else {
-                            alert("Por favor ingresa Nombre y Fecha de Nacimiento para calcular la CURP.");
-                          }
-                        }}
-                        className="self-start sm:self-auto px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-[11px] font-semibold flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
-                        title="Recalcular CURP"
-                      >
-                        <RefreshCcw className="w-3 h-3 text-slate-600" />
-                        Calcular CURP
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
-                      <div className="sm:col-span-6 relative">
-                        <input 
-                          type="text"
-                          maxLength={18}
-                          placeholder="AAAA000000XXXXXX00" 
-                          className="w-full pl-3 pr-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 transition-all font-mono font-bold uppercase tracking-wider" 
-                          value={formData.curp || ''} 
-                          onChange={e => setFormData(prev => ({...prev, curp: e.target.value.toUpperCase()}))} 
-                        />
-                      </div>
-
-                      <div className="sm:col-span-3">
-                        <select
-                          className="w-full px-2.5 py-2 border border-slate-200 rounded-lg bg-white text-slate-800 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-slate-900 outline-none"
-                          value={curpGender}
-                          onChange={(e) => {
-                            const newGen = e.target.value as 'H' | 'M';
-                            setCurpGender(newGen);
-                            const auto = calculateCurp({
-                              firstName: formData.firstName || '',
-                              lastName: formData.lastName || '',
-                              birthDate: formData.birthDate || '',
-                              gender: newGen,
-                              stateCode: curpStateCode
-                            });
-                            if (auto) setFormData(prev => ({ ...prev, curp: auto }));
-                          }}
-                        >
-                          <option value="H">Hombre (H)</option>
-                          <option value="M">Mujer (M)</option>
-                        </select>
-                      </div>
-
-                      <div className="sm:col-span-3">
-                        <select
-                          className="w-full px-2.5 py-2 border border-slate-200 rounded-lg bg-white text-slate-800 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-slate-900 outline-none truncate"
-                          value={curpStateCode}
-                          onChange={(e) => {
-                            const newSt = e.target.value;
-                            setCurpStateCode(newSt);
-                            const auto = calculateCurp({
-                              firstName: formData.firstName || '',
-                              lastName: formData.lastName || '',
-                              birthDate: formData.birthDate || '',
-                              gender: curpGender,
-                              stateCode: newSt
-                            });
-                            if (auto) setFormData(prev => ({ ...prev, curp: auto }));
-                          }}
-                        >
-                          {MEXICAN_STATES.map(s => (
-                            <option key={s.code} value={s.code}>{s.name} ({s.code})</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Foto del Colaborador */}
-                  <div className="relative md:col-span-2 bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                    <label className="text-xs font-bold text-slate-700 mb-1.5 block">Fotografía del Colaborador</label>
-                    <p className="text-[10px] text-slate-400 mb-2.5">Se utilizará en la credencial virtual, gafete y certificado oficial.</p>
-                    
-                    <div className="flex flex-col sm:flex-row gap-3 items-center">
-                      <label className="flex-1 w-full cursor-pointer bg-white hover:bg-slate-50 border border-dashed border-slate-300 hover:border-slate-400 rounded-xl p-3 flex items-center justify-center gap-2 transition-colors">
-                        <Upload className="w-4 h-4 text-slate-500" />
-                        <span className="text-xs font-semibold text-slate-700">Subir Fotografía</span>
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          className="hidden" 
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onload = (readerEvt) => {
-                                const img = new Image();
-                                img.onload = () => {
-                                  const canvas = document.createElement('canvas');
-                                  let width = img.width;
-                                  let height = img.height;
-                                  const maxDim = 400;
-                                  if (width > maxDim || height > maxDim) {
-                                    if (width > height) {
-                                      height = Math.round((height * maxDim) / width);
-                                      width = maxDim;
-                                    } else {
-                                      width = Math.round((width * maxDim) / height);
-                                      height = maxDim;
-                                    }
-                                  }
-                                  canvas.width = width;
-                                  canvas.height = height;
-                                  const ctx = canvas.getContext('2d');
-                                  ctx?.drawImage(img, 0, 0, width, height);
-                                  const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-                                  setFormData(prev => ({...prev, photoUrl: compressedDataUrl}));
-                                };
-                                img.src = readerEvt.target?.result as string;
-                              };
-                              reader.readAsDataURL(file);
-                            }
-                          }}
-                        />
-                      </label>
-
-                      {formData.photoUrl ? (
-                        <div className="relative group shrink-0 w-16 h-16 rounded-xl border border-slate-200 overflow-hidden bg-white">
-                          <img 
-                            src={formData.photoUrl} 
-                            alt="Preview" 
-                            className="w-full h-full object-cover" 
-                          />
-                          <button 
-                            type="button" 
-                            onClick={() => setFormData(prev => ({...prev, photoUrl: ''}))}
-                            className="absolute top-1 right-1 bg-rose-600 text-white p-0.5 rounded-full shadow-xs hover:bg-rose-700"
-                            title="Quitar foto"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="shrink-0 w-16 h-16 rounded-xl border border-slate-200 bg-white flex flex-col items-center justify-center text-slate-400">
-                          <User className="w-5 h-5 opacity-40" />
-                          <span className="text-[8px]">Sin Foto</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Fecha Contratación */}
-                  <div className="relative">
-                    <label className="text-xs font-bold text-gray-600 mb-1 block">Fecha Contratación</label>
-                    <div className="relative">
-                      <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                      <input 
-                        type="date" 
-                        className="pl-10 pr-3 py-2.5 w-full border border-gray-200 rounded-xl bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm" 
-                        value={formData.hireDate} 
-                        onChange={e => setFormData(prev => ({...prev, hireDate: e.target.value}))} 
-                      />
-                    </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Celular / WhatsApp
+                    </label>
+                    <input 
+                      type="text" 
+                      maxLength={10}
+                      placeholder="10 dígitos" 
+                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-slate-50/50 focus:bg-white text-slate-900 text-xs font-mono font-medium focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all shadow-2xs" 
+                      value={formData.email || ''} 
+                      onChange={e => {
+                        const val = e.target.value.replace(/\D/g, '').slice(0, 10);
+                        setFormData(prev => ({...prev, email: val, phone: val}));
+                      }} 
+                    />
                   </div>
 
                   {/* PIN de Acceso */}
-                  <div className="relative">
-                    <label className="text-xs font-bold text-indigo-600 mb-1 block flex items-center gap-1">
-                      <Lock className="w-3.5 h-3.5 text-indigo-500" /> PIN de Acceso (4 d)
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      PIN Acceso (4 d)
                     </label>
-                    <div className="relative">
-                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-indigo-500" />
-                      <input 
-                        type="text"
-                        maxLength={4} 
-                        placeholder="Ej. 1234" 
-                        className="pl-10 pr-3 py-2.5 w-full border border-indigo-100 rounded-xl bg-white text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm font-mono text-center font-bold text-indigo-700" 
-                        value={formData.accessCode || ''} 
-                        onChange={e => setFormData(prev => ({...prev, accessCode: e.target.value.replace(/\D/g,'')}))} 
-                      />
+                    <input 
+                      type="text" 
+                      maxLength={4} 
+                      placeholder="1234" 
+                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-slate-50/50 focus:bg-white text-slate-900 text-xs font-mono font-bold text-center tracking-widest focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all shadow-2xs" 
+                      value={formData.accessCode || ''} 
+                      onChange={e => setFormData(prev => ({...prev, accessCode: e.target.value.replace(/\D/g,'')}))} 
+                    />
+                  </div>
+
+                  {/* Plaza */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Plaza
+                    </label>
+                    <select 
+                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-slate-50/50 focus:bg-white text-slate-900 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all shadow-2xs cursor-pointer"
+                      value={formData.plaza || ''} 
+                      onChange={e => setFormData(prev => ({...prev, plaza: e.target.value}))}
+                    >
+                      <option value="">-- Plaza --</option>
+                      {plazas.map(p => (
+                        <option key={p.id} value={p.name}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Puesto / Cargo */}
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Puesto / Cargo
+                    </label>
+                    <input 
+                      type="text"
+                      placeholder={formData.category === 'Promotoras' ? 'Promotora' : formData.category === 'Supervisoras' ? 'Supervisora' : 'Auxiliar Administrativo'} 
+                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-slate-50/50 focus:bg-white text-slate-900 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all shadow-2xs" 
+                      value={formData.position || ''} 
+                      onChange={e => setFormData(prev => ({...prev, position: e.target.value}))} 
+                    />
+                  </div>
+
+                  {/* Fecha Contratación */}
+                  <div className="sm:col-span-2">
+                    <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Fecha de Ingreso / Contratación
+                    </label>
+                    <input 
+                      type="date" 
+                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-slate-50/50 focus:bg-white text-slate-900 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all shadow-2xs" 
+                      value={formData.hireDate || ''} 
+                      onChange={e => setFormData(prev => ({...prev, hireDate: e.target.value}))} 
+                    />
+                  </div>
+
+                  {/* Estado Laboral */}
+                  <div className="sm:col-span-2">
+                    <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Estado Laboral
+                    </label>
+                    <select 
+                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-slate-50/50 focus:bg-white text-slate-900 text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all shadow-2xs cursor-pointer"
+                      value={formData.status || 'ACTIVO'}
+                      onChange={e => setFormData(prev => ({...prev, status: e.target.value as any}))}
+                    >
+                      <option value="ACTIVO">🟢 ACTIVO</option>
+                      <option value="INACTIVO">🟡 INACTIVO</option>
+                      <option value="BAJA">🔴 BAJA</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Compact Photo Upload Box */}
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-10 h-10 rounded-lg border border-slate-200 bg-slate-100 flex items-center justify-center text-slate-400 shrink-0 overflow-hidden">
+                      {formData.photoUrl ? (
+                        <img src={formData.photoUrl} alt="Foto" className="w-full h-full object-cover" />
+                      ) : (
+                        <User className="w-5 h-5 opacity-40" />
+                      )}
+                    </div>
+
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold text-slate-800 leading-tight">Foto para Credencial</p>
+                      <p className="text-[10px] text-slate-400 truncate">
+                        {formData.photoUrl ? 'Foto cargada' : 'JPG o PNG para gafete virtual'}
+                      </p>
                     </div>
                   </div>
 
-                  {/* Estado */}
-                  <div className="relative">
-                    <label className="text-xs font-bold text-gray-600 mb-1 block">Estado del Colaborador</label>
-                    <div className="relative">
-                      <div className="absolute left-3.5 top-1/2 -translate-y-1/2 flex items-center pointer-events-none">
-                        {formData.status === 'ACTIVO' && <span className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse"></span>}
-                        {formData.status === 'INACTIVO' && <span className="w-2.5 h-2.5 bg-amber-500 rounded-full"></span>}
-                        {formData.status === 'BAJA' && <span className="w-2.5 h-2.5 bg-rose-500 rounded-full"></span>}
-                      </div>
-                      <select 
-                        className="pl-8 pr-3 py-2.5 w-full border border-gray-200 rounded-xl bg-white text-gray-900 text-sm font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm"
-                        value={formData.status || 'ACTIVO'}
-                        onChange={e => setFormData(prev => ({...prev, status: e.target.value as any}))}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <label className="px-2.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold transition-all flex items-center gap-1.5 shadow-2xs cursor-pointer">
+                      <Upload className="w-3.5 h-3.5" />
+                      <span>{formData.photoUrl ? 'Cambiar Foto' : 'Subir Foto'}</span>
+                      <input 
+                        type="file" 
+                        accept="image/*" 
+                        className="hidden" 
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onload = (readerEvt) => {
+                              const img = new Image();
+                              img.onload = () => {
+                                const canvas = document.createElement('canvas');
+                                let width = img.width;
+                                let height = img.height;
+                                const maxDim = 400;
+                                if (width > maxDim || height > maxDim) {
+                                  if (width > height) {
+                                    height = Math.round((height * maxDim) / width);
+                                    width = maxDim;
+                                  } else {
+                                    width = Math.round((width * maxDim) / height);
+                                    height = maxDim;
+                                  }
+                                }
+                                canvas.width = width;
+                                canvas.height = height;
+                                const ctx = canvas.getContext('2d');
+                                ctx?.drawImage(img, 0, 0, width, height);
+                                const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+                                setFormData(prev => ({...prev, photoUrl: compressedDataUrl}));
+                              };
+                              img.src = readerEvt.target?.result as string;
+                            };
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                      />
+                    </label>
+                    {formData.photoUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({...prev, photoUrl: ''}))}
+                        className="p-1 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                        title="Remover foto"
                       >
-                        <option value="ACTIVO">🟢 ACTIVO</option>
-                        <option value="INACTIVO">🟡 INACTIVO</option>
-                        <option value="BAJA">🔴 BAJA</option>
-                      </select>
-                    </div>
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex justify-end gap-2.5 pt-4 border-t border-slate-200 shrink-0">
-                <button 
-                  type="button" 
-                  onClick={() => setIsModalOpen(false)} 
-                  className="px-4 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition-colors shadow-2xs"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit" 
-                  disabled={loading} 
-                  className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-semibold shadow-xs active:scale-[0.99] disabled:opacity-50 transition-colors flex items-center gap-1.5 cursor-pointer"
-                >
-                  {loading ? (
-                    <>
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" /> Guardando...
-                    </>
-                  ) : (
-                    <>
-                      <Check className="w-3.5 h-3.5" /> {editingId ? 'Guardar Cambios' : 'Registrar Colaborador'}
-                    </>
-                  )}
-                </button>
+              {/* SECCIÓN 2: CURP Y DATOS DE NACIMIENTO */}
+              <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-2xs space-y-3">
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100 text-slate-800">
+                  <div className="flex items-center gap-1.5">
+                    <CreditCard className="w-3.5 h-3.5 text-slate-600" />
+                    <span className="text-[11px] font-bold uppercase tracking-wider">2. CURP y Datos de Nacimiento</span>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const auto = calculateCurp({
+                        firstName: formData.firstName || '',
+                        lastName: formData.lastName || '',
+                        birthDate: formData.birthDate || '',
+                        gender: curpGender,
+                        stateCode: curpStateCode
+                      });
+                      if (auto) {
+                        setFormData(prev => ({ ...prev, curp: auto }));
+                      } else {
+                        alert("Ingresa Nombre y Fecha de Nacimiento para calcular la CURP.");
+                      }
+                    }}
+                    className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-[11px] font-semibold flex items-center gap-1 transition-colors cursor-pointer border border-slate-200"
+                    title="Recalcular CURP"
+                  >
+                    <RefreshCcw className="w-3 h-3 text-slate-600" />
+                    Calcular CURP
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 text-xs">
+                  {/* Fecha de Nacimiento */}
+                  <div className="sm:col-span-3">
+                    <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Fecha Nacimiento
+                    </label>
+                    <input 
+                      type="date" 
+                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-slate-50/50 focus:bg-white text-slate-900 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all shadow-2xs" 
+                      value={formData.birthDate || ''} 
+                      onChange={e => {
+                        const val = e.target.value;
+                        const autoCurp = calculateCurp({
+                          firstName: formData.firstName || '',
+                          lastName: formData.lastName || '',
+                          birthDate: val,
+                          gender: curpGender,
+                          stateCode: curpStateCode
+                        });
+                        setFormData(prev => ({
+                          ...prev, 
+                          birthDate: val,
+                          ...(autoCurp ? { curp: autoCurp } : {})
+                        }));
+                      }} 
+                    />
+                  </div>
+
+                  {/* Sexo Oficial para CURP */}
+                  <div className="sm:col-span-3">
+                    <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Sexo (CURP)
+                    </label>
+                    <select
+                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-slate-50/50 focus:bg-white text-slate-900 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all shadow-2xs cursor-pointer"
+                      value={curpGender}
+                      onChange={(e) => {
+                        const newGen = e.target.value as 'H' | 'M';
+                        setCurpGender(newGen);
+                        const auto = calculateCurp({
+                          firstName: formData.firstName || '',
+                          lastName: formData.lastName || '',
+                          birthDate: formData.birthDate || '',
+                          gender: newGen,
+                          stateCode: curpStateCode
+                        });
+                        setFormData(prev => ({
+                          ...prev,
+                          gender: newGen === 'M' ? 'femenino' : 'masculino',
+                          ...(auto ? { curp: auto } : {})
+                        }));
+                      }}
+                    >
+                      <option value="H">Hombre (H)</option>
+                      <option value="M">Mujer (M)</option>
+                    </select>
+                  </div>
+
+                  {/* Entidad de Nacimiento */}
+                  <div className="sm:col-span-3">
+                    <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Estado de Nacimiento
+                    </label>
+                    <select
+                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-slate-50/50 focus:bg-white text-slate-900 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all shadow-2xs cursor-pointer truncate"
+                      value={curpStateCode}
+                      onChange={(e) => {
+                        const newSt = e.target.value;
+                        setCurpStateCode(newSt);
+                        const auto = calculateCurp({
+                          firstName: formData.firstName || '',
+                          lastName: formData.lastName || '',
+                          birthDate: formData.birthDate || '',
+                          gender: curpGender,
+                          stateCode: newSt
+                        });
+                        if (auto) setFormData(prev => ({ ...prev, curp: auto }));
+                      }}
+                    >
+                      {MEXICAN_STATES.map(s => (
+                        <option key={s.code} value={s.code}>{s.name} ({s.code})</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* CURP Output */}
+                  <div className="sm:col-span-3">
+                    <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      CURP (18 Dígitos)
+                    </label>
+                    <input 
+                      type="text"
+                      maxLength={18}
+                      placeholder="AAAA000000XXXXXX00" 
+                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-slate-50/80 focus:bg-white text-slate-900 text-xs font-mono font-bold uppercase tracking-wider focus:outline-none focus:ring-1 focus:ring-slate-900 transition-all shadow-2xs" 
+                      value={formData.curp || ''} 
+                      onChange={e => setFormData(prev => ({...prev, curp: e.target.value.toUpperCase()}))} 
+                    />
+                  </div>
+                </div>
               </div>
+
+              {/* SECCIÓN 3: EXPEDIENTE Y CONTRATO LABORAL */}
+              <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-2xs space-y-3">
+                <div className="flex items-center gap-1.5 pb-2 border-b border-slate-100 text-slate-800">
+                  <FileText className="w-3.5 h-3.5 text-slate-600" />
+                  <span className="text-[11px] font-bold uppercase tracking-wider">3. Expediente y Datos para Contrato</span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-12 gap-3 text-xs">
+                  {/* Domicilio Particular Completo */}
+                  <div className="sm:col-span-12">
+                    <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Domicilio Particular Completo
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Calle, Número, Colonia, C.P., Municipio, Estado."
+                      value={formData.address || ''}
+                      onChange={e => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-slate-50/50 focus:bg-white text-slate-900 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-slate-900 shadow-2xs"
+                    />
+                  </div>
+
+                  {/* Estado Civil */}
+                  <div className="sm:col-span-3">
+                    <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Estado Civil
+                    </label>
+                    <select
+                      value={formData.civilStatus || 'Soltero(a)'}
+                      onChange={e => setFormData(prev => ({ ...prev, civilStatus: e.target.value }))}
+                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-slate-50/50 focus:bg-white text-slate-800 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-slate-900 shadow-2xs cursor-pointer"
+                    >
+                      <option value="Soltero(a)">Soltero(a)</option>
+                      <option value="Casado(a)">Casado(a)</option>
+                      <option value="Unión Libre">Unión Libre</option>
+                      <option value="Divorciado(a)">Divorciado(a)</option>
+                      <option value="Viudo(a)">Viudo(a)</option>
+                    </select>
+                  </div>
+
+                  {/* Nacionalidad */}
+                  <div className="sm:col-span-3">
+                    <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Nacionalidad
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Mexicana"
+                      value={formData.nationality || 'Mexicana'}
+                      onChange={e => setFormData(prev => ({ ...prev, nationality: e.target.value }))}
+                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-slate-50/50 focus:bg-white text-slate-900 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-slate-900 shadow-2xs"
+                    />
+                  </div>
+
+                  {/* Género para contrato */}
+                  <div className="sm:col-span-3">
+                    <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Género Contrato
+                    </label>
+                    <select
+                      value={formData.gender || (curpGender === 'M' ? 'femenino' : 'masculino')}
+                      onChange={e => setFormData(prev => ({ ...prev, gender: e.target.value }))}
+                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-slate-50/50 focus:bg-white text-slate-800 text-xs font-medium focus:outline-none focus:ring-1 focus:ring-slate-900 shadow-2xs cursor-pointer"
+                    >
+                      <option value="masculino">Masculino</option>
+                      <option value="femenino">Femenino</option>
+                    </select>
+                  </div>
+
+                  {/* Salario Acordado ($) */}
+                  <div className="sm:col-span-3">
+                    <label className="block text-[10px] font-bold text-slate-700 uppercase tracking-wider mb-1">
+                      Salario Acordado ($)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ej. 3,000.00"
+                      value={formData.salary || ''}
+                      onChange={e => setFormData(prev => ({ ...prev, salary: e.target.value }))}
+                      className="w-full px-2.5 py-1.5 border border-slate-200 rounded-lg bg-slate-50/50 focus:bg-white text-slate-900 text-xs font-mono font-medium focus:outline-none focus:ring-1 focus:ring-slate-900 shadow-2xs"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons Footer */}
+              <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-200 shrink-0">
+                <div className="text-[11px] text-slate-400">
+                  <span className="font-semibold text-slate-600">* Campos mínimos</span>: Nombre(s) y Plaza.
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button 
+                    type="button" 
+                    onClick={() => setIsModalOpen(false)} 
+                    className="px-4 py-2 border border-slate-200 rounded-lg text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
+                  >
+                    Cancelar
+                  </button>
+                  <button 
+                    type="submit" 
+                    disabled={loading} 
+                    className="px-5 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-lg text-xs font-bold shadow-xs active:scale-[0.99] disabled:opacity-50 transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Guardando...
+                      </>
+                    ) : (
+                      <>
+                        <Check className="w-3.5 h-3.5" /> {editingId ? 'Guardar Cambios' : 'Registrar Colaborador'}
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
             </form>
           </div>
         </div>
@@ -2239,6 +2400,67 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
                       ? new Date(viewingEmployeeDetails.lastCredentialViewAt).toLocaleDateString('es-MX', { day: '2-digit', month: 'short' })
                       : 'Sin escaneos'}
                   </span>
+                </div>
+
+                {/* Domicilio y Datos de Contratación */}
+                <div className="p-3.5 bg-slate-50/80 rounded-xl border border-slate-200 sm:col-span-2 space-y-2">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                    <FileText className="w-3.5 h-3.5 text-indigo-600" /> Domicilio y Datos para Contrato Laboral
+                  </span>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <div className="bg-white p-2.5 rounded-lg border border-slate-200 sm:col-span-2">
+                      <span className="text-[10px] text-slate-400 block font-semibold">Domicilio Particular</span>
+                      <span className="font-semibold text-slate-900 flex items-center gap-1.5 mt-0.5">
+                        <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        {viewingEmployeeDetails.address || 'No registrado (usará predeterminado de plaza)'}
+                      </span>
+                    </div>
+
+                    <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                      <span className="text-[10px] text-slate-400 block font-semibold">Estado Civil / Nacionalidad</span>
+                      <span className="font-semibold text-slate-900 mt-0.5 block">
+                        {viewingEmployeeDetails.civilStatus || 'Soltero(a)'} • {viewingEmployeeDetails.nationality || 'Mexicana'}
+                      </span>
+                    </div>
+
+                    <div className="bg-white p-2.5 rounded-lg border border-slate-200">
+                      <span className="text-[10px] text-slate-400 block font-semibold">Salario Registrado ($)</span>
+                      <span className="font-bold text-slate-900 mt-0.5 block font-mono">
+                        {viewingEmployeeDetails.salary ? `$${viewingEmployeeDetails.salary}` : 'Estándar del sistema'}
+                      </span>
+                    </div>
+
+                    <div className="bg-white p-2.5 rounded-lg border border-slate-200 sm:col-span-2">
+                      <span className="text-[10px] text-slate-400 block font-semibold">Vigencia del Contrato Actual</span>
+                      {viewingEmployeeDetails.contractEndDate ? (
+                        <div className="flex items-center justify-between gap-2 mt-0.5 flex-wrap">
+                          <span className="font-mono font-bold text-slate-900">
+                            {viewingEmployeeDetails.contractStartDate || 'Inicio N/A'} ➔ {viewingEmployeeDetails.contractEndDate}
+                          </span>
+                          {(() => {
+                            try {
+                              const today = new Date();
+                              today.setHours(0, 0, 0, 0);
+                              const end = new Date(viewingEmployeeDetails.contractEndDate + 'T00:00:00');
+                              const diffDays = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                              if (diffDays < 0) {
+                                return <span className="text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">🔴 Vencido ({Math.abs(diffDays)}d)</span>;
+                              } else if (diffDays <= 30) {
+                                return <span className="text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">⚠️ Vence en {diffDays}d</span>;
+                              } else {
+                                return <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">🟢 Vigente ({Math.round(diffDays / 30)}m)</span>;
+                              }
+                            } catch {
+                              return null;
+                            }
+                          })()}
+                        </div>
+                      ) : (
+                        <span className="text-slate-400 text-xs italic mt-0.5 block">Sin contrato generado aún</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
 
               </div>

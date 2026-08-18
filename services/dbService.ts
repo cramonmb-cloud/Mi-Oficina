@@ -27,7 +27,7 @@ import {
   getDownloadURL 
 } from "firebase/storage";
 import { db, storage } from "../firebase";
-import { Employee, Expense, Task, TaskStatus, AppSettings, GeneratedImage, Plaza, Fallo, VacationRequest, Office } from "../types";
+import { Employee, Expense, Task, TaskStatus, AppSettings, GeneratedImage, Plaza, Fallo, VacationRequest, Office, EmployeeContract } from "../types";
 import { uploadToImgBB } from "./imgbbService";
 
 
@@ -856,6 +856,45 @@ export const addExpenseCategory = async (name: string) => {
 
 export const deleteExpenseCategory = async (id: string) => {
   return await deleteDoc(doc(db, "expense_categories", id));
+};
+
+// --- EMPLOYEE CONTRACTS HISTORY ---
+
+export const subscribeToEmployeeContracts = (callback: (contracts: EmployeeContract[]) => void, onError?: (error: any) => void) => {
+  const q = query(collection(db, "employee_contracts"), orderBy("generatedAt", "desc"));
+  return onSnapshot(q, (snapshot) => {
+    const contracts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as EmployeeContract));
+    callback(contracts);
+  }, onError || ((err) => console.error("Error subscribing to employee contracts:", err)));
+};
+
+export const addEmployeeContract = async (contract: Omit<EmployeeContract, 'id'>) => {
+  const genTime = contract.generatedAt || new Date().toISOString();
+  const docRef = await addDoc(collection(db, "employee_contracts"), {
+    ...contract,
+    generatedAt: genTime
+  });
+
+  // Automatically update the employee's profile with contract dates
+  try {
+    const empRef = doc(db, "employees", contract.employeeId);
+    await updateDoc(empRef, {
+      contractStartDate: contract.startDate,
+      contractEndDate: contract.endDate,
+      lastContractId: docRef.id,
+      lastContractGeneratedAt: genTime,
+      position: contract.position || undefined,
+      ...(contract.salaryNum ? { salary: contract.salaryNum } : {})
+    });
+  } catch (err) {
+    console.error("Error updating employee with contract dates:", err);
+  }
+
+  return docRef;
+};
+
+export const deleteEmployeeContract = async (id: string) => {
+  return await deleteDoc(doc(db, "employee_contracts", id));
 };
 
 
