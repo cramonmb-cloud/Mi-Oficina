@@ -96,9 +96,11 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
   const [statusFilter, setStatusFilter] = useState<'TODOS' | 'PENDIENTE' | 'APROBADA' | 'RECHAZADA'>('TODOS');
   const [typeFilter, setTypeFilter] = useState<'TODOS' | 'disponibles' | 'descuento'>('TODOS');
   const [isPastRequestsOpen, setIsPastRequestsOpen] = useState(false);
-  const [daysPerYear, setDaysPerYear] = useState<number>(() => {
-    const saved = localStorage.getItem('vacationDaysPerYear');
-    return saved ? parseInt(saved, 10) : 12;
+  const [daysPer6Months, setDaysPer6Months] = useState<number>(() => {
+    const saved = localStorage.getItem('vacationDaysPer6Months');
+    if (saved) return parseInt(saved, 10);
+    const legacyYear = localStorage.getItem('vacationDaysPerYear');
+    return legacyYear ? Math.max(1, Math.round(parseInt(legacyYear, 10) / 2)) : 6;
   });
   const [accumulationRule, setAccumulationRule] = useState<'accumulate' | 'reset-on-anniversary'>(() => {
     const saved = localStorage.getItem('vacationAccumulationRule');
@@ -122,9 +124,9 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
 
   useEffect(() => {
     const handleDaysChanged = () => {
-      const saved = localStorage.getItem('vacationDaysPerYear');
+      const saved = localStorage.getItem('vacationDaysPer6Months');
       if (saved) {
-        setDaysPerYear(parseInt(saved, 10));
+        setDaysPer6Months(parseInt(saved, 10));
       }
     };
     const handleRuleChanged = () => {
@@ -133,10 +135,10 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
         setAccumulationRule(saved as 'accumulate' | 'reset-on-anniversary');
       }
     };
-    window.addEventListener('vacationDaysPerYearChanged', handleDaysChanged);
+    window.addEventListener('vacationDaysPer6MonthsChanged', handleDaysChanged);
     window.addEventListener('vacationAccumulationRuleChanged', handleRuleChanged);
     return () => {
-      window.removeEventListener('vacationDaysPerYearChanged', handleDaysChanged);
+      window.removeEventListener('vacationDaysPer6MonthsChanged', handleDaysChanged);
       window.removeEventListener('vacationAccumulationRuleChanged', handleRuleChanged);
     };
   }, []);
@@ -233,20 +235,19 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
     }
   }, [selectedEmpId, employees]);
 
-  // Calculates Vacation Balance for an Employee
+  // Calculates Vacation Balance for an Employee (6-month renewal contract scheme)
   const getEmployeeBalance = (emp: Employee) => {
-    if (!emp.hireDate) return { yearsOfService: 0, totalEarned: 0, used: 0, balance: 0, text: 'Sin Fecha Ingreso' };
+    if (!emp.hireDate) return { semestersOfService: 0, yearsOfService: 0, totalEarned: 0, used: 0, balance: 0, text: 'Sin Fecha Ingreso' };
     
     try {
       const hire = new Date(emp.hireDate + 'T00:00:00');
-      if (isNaN(hire.getTime())) return { yearsOfService: 0, totalEarned: 0, used: 0, balance: 0, text: 'Fecha Inválida' };
+      if (isNaN(hire.getTime())) return { semestersOfService: 0, yearsOfService: 0, totalEarned: 0, used: 0, balance: 0, text: 'Fecha Inválida' };
       
       const today = new Date();
-      const diffTime = today.getTime() - hire.getTime();
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-      
-      // Calculate completed years
-      const yearsOfService = diffDays >= 0 ? Math.floor(diffDays / 365.25) : 0;
+      // Calculate elapsed calendar months
+      const diffMonths = (today.getFullYear() - hire.getFullYear()) * 12 + (today.getMonth() - hire.getMonth()) + (today.getDate() >= hire.getDate() ? 0 : -1);
+      const semestersOfService = Math.max(0, Math.floor(diffMonths / 6));
+      const yearsOfService = semestersOfService * 0.5;
       
       // Filter approved requests of type 'disponibles' (subtracted days)
       const empRequests = vacationRequests.filter(
@@ -257,27 +258,24 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
       let used = 0;
 
       if (accumulationRule === 'reset-on-anniversary') {
-        const hireYear = hire.getFullYear();
-        const hireMonth = hire.getMonth();
-        const hireDay = hire.getDate();
+        // Reset on every 6-month contract renewal
+        totalEarned = semestersOfService >= 1 ? daysPer6Months : 0;
 
-        // Calculate current anniversary year range
-        const lastAnniversary = new Date(hireYear + yearsOfService, hireMonth, hireDay);
-        const nextAnniversary = new Date(hireYear + yearsOfService + 1, hireMonth, hireDay);
+        const periodStart = new Date(hire);
+        periodStart.setMonth(hire.getMonth() + (semestersOfService * 6));
+        const periodEnd = new Date(hire);
+        periodEnd.setMonth(hire.getMonth() + ((semestersOfService + 1) * 6));
 
-        totalEarned = yearsOfService >= 1 ? daysPerYear : 0;
-
-        // Sum only requests starting within the current anniversary period
         used = empRequests.reduce((sum, r) => {
           const reqStart = new Date(r.startDate + 'T00:00:00');
-          if (reqStart >= lastAnniversary && reqStart < nextAnniversary) {
+          if (reqStart >= periodStart && reqStart < periodEnd) {
             return sum + r.totalDays;
           }
           return sum;
         }, 0);
       } else {
-        // 1 year complete = daysPerYear days automatically, 2 years = daysPerYear * 2 etc. (Accumulative)
-        totalEarned = yearsOfService >= 1 ? yearsOfService * daysPerYear : 0;
+        // Accumulative by completed 6-month periods
+        totalEarned = semestersOfService >= 1 ? semestersOfService * daysPer6Months : 0;
         used = empRequests.reduce((sum, r) => sum + r.totalDays, 0);
       }
 
@@ -292,14 +290,17 @@ export const VacationsControl: React.FC<VacationsControlProps> = ({ employees, v
       const balance = totalEarned - used;
       
       return {
+        semestersOfService,
         yearsOfService,
         totalEarned,
         used,
         balance,
-        text: `${yearsOfService} ${yearsOfService === 1 ? 'año' : 'años'} de servicio`
+        text: semestersOfService === 0 
+          ? 'En 1er periodo (< 6 meses)' 
+          : `${semestersOfService} ${semestersOfService === 1 ? 'periodo de 6m cumplido' : 'periodos de 6m cumplidos'}`
       };
     } catch (e) {
-      return { yearsOfService: 0, totalEarned: 0, used: 0, balance: 0, text: 'Error' };
+      return { semestersOfService: 0, yearsOfService: 0, totalEarned: 0, used: 0, balance: 0, text: 'Error' };
     }
   };
 

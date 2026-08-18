@@ -6,6 +6,7 @@ import { addEmployee, deleteEmployee, updateEmployee, addPlaza, deletePlaza, del
 import { VacationsControl } from './VacationsControl';
 import { VacationsBalancesTable } from './VacationsBalancesTable';
 import { VirtualCredentialModal } from './VirtualCredentialModal';
+import { calculateCurp, MEXICAN_STATES } from '../services/curpService';
 import QRCode from 'qrcode';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -61,6 +62,8 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
   const [newPlazaName, setNewPlazaName] = useState('');
   
   const [formData, setFormData] = useState<Partial<Employee>>(INITIAL_FORM_STATE);
+  const [curpGender, setCurpGender] = useState<'H' | 'M'>('H');
+  const [curpStateCode, setCurpStateCode] = useState<string>('JC');
   const [loading, setLoading] = useState(false);
 
   // Vacations Section State
@@ -232,15 +235,31 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
     });
   }, [employees, activeCategory, searchTerm, selectedPlazaFilter, selectedSupervisorFilter, selectedStatusFilter]);
 
-  const handleOpenModal = (employee?: Employee) => {
-    if (employee) {
+  const handleOpenModal = (emp?: Employee) => {
+    if (emp) {
       // Edit Mode
-      setEditingId(employee.id);
-      setFormData(employee);
+      setEditingId(emp.id);
+      setFormData({
+        ...emp,
+        accessCode: emp.accessCode || '',
+        category: emp.category || 'Promotoras',
+        status: emp.status || 'ACTIVO',
+        curp: emp.curp || ''
+      });
+
+      // Try extracting gender and state from existing CURP
+      if (emp.curp && emp.curp.length >= 13) {
+        const gen = emp.curp[10];
+        if (gen === 'H' || gen === 'M') setCurpGender(gen as 'H' | 'M');
+        const st = emp.curp.substring(11, 13);
+        if (MEXICAN_STATES.some(s => s.code === st)) setCurpStateCode(st);
+      }
     } else {
       // Create Mode
       setEditingId(null);
       setFormData(INITIAL_FORM_STATE);
+      setCurpGender('H');
+      setCurpStateCode('JC');
     }
     setIsModalOpen(true);
   };
@@ -1512,7 +1531,21 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
                         placeholder="Escribe el nombre completo" 
                         className="pl-10 pr-3 py-2.5 w-full border border-gray-200 rounded-xl bg-white text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm font-semibold" 
                         value={formData.firstName} 
-                        onChange={e => setFormData(prev => ({...prev, firstName: e.target.value}))} 
+                        onChange={e => {
+                          const val = e.target.value;
+                          const autoCurp = calculateCurp({
+                            firstName: val,
+                            lastName: formData.lastName || '',
+                            birthDate: formData.birthDate || '',
+                            gender: curpGender,
+                            stateCode: curpStateCode
+                          });
+                          setFormData(prev => ({
+                            ...prev, 
+                            firstName: val,
+                            ...(autoCurp ? { curp: autoCurp } : {})
+                          }));
+                        }} 
                         required
                       />
                     </div>
@@ -1528,7 +1561,21 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
                         placeholder="Escribe los apellidos completos" 
                         className="pl-10 pr-3 py-2.5 w-full border border-gray-200 rounded-xl bg-white text-gray-900 text-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm font-semibold" 
                         value={formData.lastName} 
-                        onChange={e => setFormData(prev => ({...prev, lastName: e.target.value}))} 
+                        onChange={e => {
+                          const val = e.target.value;
+                          const autoCurp = calculateCurp({
+                            firstName: formData.firstName || '',
+                            lastName: val,
+                            birthDate: formData.birthDate || '',
+                            gender: curpGender,
+                            stateCode: curpStateCode
+                          });
+                          setFormData(prev => ({
+                            ...prev, 
+                            lastName: val,
+                            ...(autoCurp ? { curp: autoCurp } : {})
+                          }));
+                        }} 
                       />
                     </div>
                   </div>
@@ -1561,7 +1608,21 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
                         type="date" 
                         className="pl-10 pr-3 py-2.5 w-full border border-gray-200 rounded-xl bg-white text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all shadow-sm" 
                         value={formData.birthDate} 
-                        onChange={e => setFormData(prev => ({...prev, birthDate: e.target.value}))} 
+                        onChange={e => {
+                          const val = e.target.value;
+                          const autoCurp = calculateCurp({
+                            firstName: formData.firstName || '',
+                            lastName: formData.lastName || '',
+                            birthDate: val,
+                            gender: curpGender,
+                            stateCode: curpStateCode
+                          });
+                          setFormData(prev => ({
+                            ...prev, 
+                            birthDate: val,
+                            ...(autoCurp ? { curp: autoCurp } : {})
+                          }));
+                        }} 
                       />
                     </div>
                   </div>
@@ -1607,19 +1668,96 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
                     </div>
                   </div>
 
-                  {/* CURP */}
-                  <div className="relative">
-                    <label className="text-xs font-bold text-slate-700 mb-1 block">CURP (18 caracteres)</label>
-                    <div className="relative">
-                      <CreditCard className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input 
-                        type="text"
-                        maxLength={18}
-                        placeholder="AAAA000000XXXXXX00" 
-                        className="pl-10 pr-3 py-2.5 w-full border border-slate-200 rounded-xl bg-white text-slate-900 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 transition-all shadow-sm font-mono uppercase" 
-                        value={formData.curp || ''} 
-                        onChange={e => setFormData(prev => ({...prev, curp: e.target.value.toUpperCase()}))} 
-                      />
+                  {/* CURP con cálculo automático */}
+                  <div className="relative md:col-span-2 bg-slate-50/70 p-3.5 rounded-xl border border-slate-200 space-y-2.5">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                      <div>
+                        <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
+                          <CreditCard className="w-3.5 h-3.5 text-slate-600" /> CURP (Cálculo Automático Oficial)
+                        </label>
+                        <p className="text-[10px] text-slate-400">Se genera automáticamente con base en el Nombre, Apellidos y Fecha de Nacimiento.</p>
+                      </div>
+                      
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const auto = calculateCurp({
+                            firstName: formData.firstName || '',
+                            lastName: formData.lastName || '',
+                            birthDate: formData.birthDate || '',
+                            gender: curpGender,
+                            stateCode: curpStateCode
+                          });
+                          if (auto) {
+                            setFormData(prev => ({ ...prev, curp: auto }));
+                          } else {
+                            alert("Por favor ingresa Nombre y Fecha de Nacimiento para calcular la CURP.");
+                          }
+                        }}
+                        className="self-start sm:self-auto px-2.5 py-1 bg-white hover:bg-slate-100 text-slate-700 border border-slate-200 rounded-lg text-[11px] font-semibold flex items-center gap-1 shadow-2xs transition-colors cursor-pointer"
+                        title="Recalcular CURP"
+                      >
+                        <RefreshCcw className="w-3 h-3 text-slate-600" />
+                        Calcular CURP
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                      <div className="sm:col-span-6 relative">
+                        <input 
+                          type="text"
+                          maxLength={18}
+                          placeholder="AAAA000000XXXXXX00" 
+                          className="w-full pl-3 pr-3 py-2 border border-slate-200 rounded-lg bg-white text-slate-900 text-sm placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-slate-900 transition-all font-mono font-bold uppercase tracking-wider" 
+                          value={formData.curp || ''} 
+                          onChange={e => setFormData(prev => ({...prev, curp: e.target.value.toUpperCase()}))} 
+                        />
+                      </div>
+
+                      <div className="sm:col-span-3">
+                        <select
+                          className="w-full px-2.5 py-2 border border-slate-200 rounded-lg bg-white text-slate-800 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-slate-900 outline-none"
+                          value={curpGender}
+                          onChange={(e) => {
+                            const newGen = e.target.value as 'H' | 'M';
+                            setCurpGender(newGen);
+                            const auto = calculateCurp({
+                              firstName: formData.firstName || '',
+                              lastName: formData.lastName || '',
+                              birthDate: formData.birthDate || '',
+                              gender: newGen,
+                              stateCode: curpStateCode
+                            });
+                            if (auto) setFormData(prev => ({ ...prev, curp: auto }));
+                          }}
+                        >
+                          <option value="H">Hombre (H)</option>
+                          <option value="M">Mujer (M)</option>
+                        </select>
+                      </div>
+
+                      <div className="sm:col-span-3">
+                        <select
+                          className="w-full px-2.5 py-2 border border-slate-200 rounded-lg bg-white text-slate-800 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-slate-900 outline-none truncate"
+                          value={curpStateCode}
+                          onChange={(e) => {
+                            const newSt = e.target.value;
+                            setCurpStateCode(newSt);
+                            const auto = calculateCurp({
+                              firstName: formData.firstName || '',
+                              lastName: formData.lastName || '',
+                              birthDate: formData.birthDate || '',
+                              gender: curpGender,
+                              stateCode: newSt
+                            });
+                            if (auto) setFormData(prev => ({ ...prev, curp: auto }));
+                          }}
+                        >
+                          {MEXICAN_STATES.map(s => (
+                            <option key={s.code} value={s.code}>{s.name} ({s.code})</option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
 

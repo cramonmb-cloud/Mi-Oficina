@@ -11,16 +11,18 @@ interface VacationsBalancesTableProps {
 export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ employees, vacationRequests }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('TODOS');
-  const [daysPerYear, setDaysPerYear] = useState<number>(() => {
-    const saved = localStorage.getItem('vacationDaysPerYear');
-    return saved ? parseInt(saved, 10) : 12;
+  const [daysPer6Months, setDaysPer6Months] = useState<number>(() => {
+    const saved = localStorage.getItem('vacationDaysPer6Months');
+    if (saved) return parseInt(saved, 10);
+    const legacyYear = localStorage.getItem('vacationDaysPerYear');
+    return legacyYear ? Math.max(1, Math.round(parseInt(legacyYear, 10) / 2)) : 6;
   });
   const [accumulationRule, setAccumulationRule] = useState<'accumulate' | 'reset-on-anniversary'>(() => {
     const saved = localStorage.getItem('vacationAccumulationRule');
     return (saved as 'accumulate' | 'reset-on-anniversary') || 'accumulate';
   });
   const [isConfigModalOpen, setIsConfigModalOpen] = useState(false);
-  const [tempDaysValue, setTempDaysValue] = useState<string>(String(daysPerYear));
+  const [tempDaysValue, setTempDaysValue] = useState<string>(String(daysPer6Months));
   const [tempRuleValue, setTempRuleValue] = useState<'accumulate' | 'reset-on-anniversary'>(accumulationRule);
   const [isAdjustMode, setIsAdjustMode] = useState(false);
   const [pendingAdjustments, setPendingAdjustments] = useState<Record<string, { earned?: number | null, used?: number | null }>>({});
@@ -28,10 +30,10 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
   // Keep state updated if changed elsewhere
   useEffect(() => {
     const handleDaysChanged = () => {
-      const saved = localStorage.getItem('vacationDaysPerYear');
+      const saved = localStorage.getItem('vacationDaysPer6Months');
       if (saved) {
         const parsed = parseInt(saved, 10);
-        setDaysPerYear(parsed);
+        setDaysPer6Months(parsed);
         setTempDaysValue(String(parsed));
       }
     };
@@ -43,28 +45,27 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
         setTempRuleValue(rule);
       }
     };
-    window.addEventListener('vacationDaysPerYearChanged', handleDaysChanged);
+    window.addEventListener('vacationDaysPer6MonthsChanged', handleDaysChanged);
     window.addEventListener('vacationAccumulationRuleChanged', handleRuleChanged);
     return () => {
-      window.removeEventListener('vacationDaysPerYearChanged', handleDaysChanged);
+      window.removeEventListener('vacationDaysPer6MonthsChanged', handleDaysChanged);
       window.removeEventListener('vacationAccumulationRuleChanged', handleRuleChanged);
     };
   }, []);
 
-  // Calculates Vacation Balance for an Employee
+  // Calculates Vacation Balance for an Employee based on 6-month contract renewals
   const getEmployeeBalance = (emp: Employee) => {
-    if (!emp.hireDate) return { yearsOfService: 0, totalEarned: 0, used: 0, balance: 0, text: 'Sin Fecha Ingreso' };
+    if (!emp.hireDate) return { semestersOfService: 0, yearsOfService: 0, totalEarned: 0, used: 0, balance: 0, text: 'Sin Fecha Ingreso' };
     
     try {
       const hire = new Date(emp.hireDate + 'T00:00:00');
-      if (isNaN(hire.getTime())) return { yearsOfService: 0, totalEarned: 0, used: 0, balance: 0, text: 'Fecha Inválida' };
+      if (isNaN(hire.getTime())) return { semestersOfService: 0, yearsOfService: 0, totalEarned: 0, used: 0, balance: 0, text: 'Fecha Inválida' };
       
       const today = new Date();
-      const diffTime = today.getTime() - hire.getTime();
-      const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-      
-      // Calculate completed years
-      const yearsOfService = diffDays >= 0 ? Math.floor(diffDays / 365.25) : 0;
+      // Calculate elapsed calendar months
+      const diffMonths = (today.getFullYear() - hire.getFullYear()) * 12 + (today.getMonth() - hire.getMonth()) + (today.getDate() >= hire.getDate() ? 0 : -1);
+      const semestersOfService = Math.max(0, Math.floor(diffMonths / 6));
+      const yearsOfService = semestersOfService * 0.5;
       
       // Filter approved requests of type 'disponibles' (subtracted days)
       const empRequests = vacationRequests.filter(
@@ -75,27 +76,26 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
       let used = 0;
 
       if (accumulationRule === 'reset-on-anniversary') {
-        const hireYear = hire.getFullYear();
-        const hireMonth = hire.getMonth();
-        const hireDay = hire.getDate();
+        // Reset on every 6-month contract renewal
+        totalEarned = semestersOfService >= 1 ? daysPer6Months : 0;
 
-        // Calculate current anniversary year range
-        const lastAnniversary = new Date(hireYear + yearsOfService, hireMonth, hireDay);
-        const nextAnniversary = new Date(hireYear + yearsOfService + 1, hireMonth, hireDay);
+        // Current 6-month period range
+        const periodStart = new Date(hire);
+        periodStart.setMonth(hire.getMonth() + (semestersOfService * 6));
+        const periodEnd = new Date(hire);
+        periodEnd.setMonth(hire.getMonth() + ((semestersOfService + 1) * 6));
 
-        totalEarned = yearsOfService >= 1 ? daysPerYear : 0;
-
-        // Sum only requests starting within the current anniversary period
+        // Sum only requests starting within the current 6-month period
         used = empRequests.reduce((sum, r) => {
           const reqStart = new Date(r.startDate + 'T00:00:00');
-          if (reqStart >= lastAnniversary && reqStart < nextAnniversary) {
+          if (reqStart >= periodStart && reqStart < periodEnd) {
             return sum + r.totalDays;
           }
           return sum;
         }, 0);
       } else {
-        // 1 year complete = daysPerYear days automatically, 2 years = daysPerYear * 2 etc. (Accumulative)
-        totalEarned = yearsOfService >= 1 ? yearsOfService * daysPerYear : 0;
+        // Accumulative by completed 6-month periods
+        totalEarned = semestersOfService >= 1 ? semestersOfService * daysPer6Months : 0;
         used = empRequests.reduce((sum, r) => sum + r.totalDays, 0);
       }
 
@@ -128,16 +128,19 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
       const balance = finalEarned - finalUsed;
       
       return {
+        semestersOfService,
         yearsOfService,
         totalEarned: finalEarned,
         used: finalUsed,
         balance,
         baseEarned: totalEarned,
         baseUsed: used,
-        text: `${yearsOfService} ${yearsOfService === 1 ? 'año' : 'años'} de servicio`
+        text: semestersOfService === 0 
+          ? 'En 1er periodo (< 6 meses)' 
+          : `${semestersOfService} ${semestersOfService === 1 ? 'periodo de 6m cumplido' : 'periodos de 6m cumplidos'}`
       };
     } catch (e) {
-      return { yearsOfService: 0, totalEarned: 0, used: 0, balance: 0, text: 'Error' };
+      return { semestersOfService: 0, yearsOfService: 0, totalEarned: 0, used: 0, balance: 0, text: 'Error' };
     }
   };
 
@@ -281,7 +284,8 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
               <button
                 type="button"
                 onClick={() => {
-                  setTempDaysValue(String(daysPerYear));
+                  setTempDaysValue(String(daysPer6Months));
+                  setTempRuleValue(accumulationRule);
                   setIsConfigModalOpen(true);
                 }}
                 className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white hover:bg-slate-50 text-slate-700 font-semibold text-xs rounded-lg transition-colors border border-slate-200 shadow-2xs"
@@ -332,7 +336,7 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
               <tr className="bg-slate-50 text-slate-500 font-semibold uppercase tracking-wider text-[11px] border-b border-slate-200">
                 <th className="py-3 px-4">Colaborador</th>
                 <th className="py-3 px-4">Categoría / Puesto</th>
-                <th className="py-3 px-4 text-center">Ingreso / Antigüedad</th>
+                <th className="py-3 px-4 text-center">Ingreso / Periodos (6m)</th>
                 <th className="py-3 px-4 text-center">Ganados</th>
                 <th className="py-3 px-4 text-center">Usados</th>
                 <th className="py-3 px-4 text-center font-bold text-slate-800">Saldo Disponible</th>
@@ -340,8 +344,8 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {filteredBalances.length > 0 ? (
-                filteredBalances.map(({ emp, yearsOfService, totalEarned, used, balance, baseEarned, baseUsed }) => {
-                  const hasOneYear = yearsOfService >= 1;
+                filteredBalances.map(({ emp, semestersOfService, totalEarned, used, balance, baseEarned, baseUsed, text }) => {
+                  const hasOneSemester = semestersOfService >= 1;
                   return (
                     <tr key={emp.id} className="hover:bg-slate-50 transition-colors">
                       <td className="py-3 px-4">
@@ -361,8 +365,8 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
                       <td className="py-3 px-4 text-center">
                         <div>
                           <p className="text-slate-800 font-mono text-[11px]">{emp.hireDate || 'No Registrada'}</p>
-                          <p className={`text-[10px] font-semibold mt-0.5 ${hasOneYear ? 'text-emerald-700' : 'text-amber-700'}`}>
-                            {yearsOfService === 0 ? 'Menos de 1 año' : `${yearsOfService} ${yearsOfService === 1 ? 'año' : 'años'} cumplidos`}
+                          <p className={`text-[10px] font-semibold mt-0.5 ${hasOneSemester ? 'text-emerald-700' : 'text-amber-700'}`}>
+                            {text}
                           </p>
                         </div>
                       </td>
@@ -457,38 +461,40 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
         </div>
       </div>
       
-      {/* Modal de Configuración de Días de Vacaciones */}
+      {/* Modal de Configuración de Días de Vacaciones por Contrato Semestral */}
       {isConfigModalOpen && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 backdrop-blur-xs">
-          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl border border-gray-100 animate-in fade-in zoom-in-95 duration-200">
-            <h4 className="text-base font-extrabold text-gray-900 mb-2">Configurar Días de Vacaciones</h4>
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-gray-100 animate-in fade-in zoom-in-95 duration-200">
+            <h4 className="text-base font-extrabold text-gray-900 mb-1">Configurar Prestación de Vacaciones</h4>
+            <p className="text-xs text-slate-500 mb-4">Ajustes para esquema de renovación de contrato cada 6 meses.</p>
             
             <div className="space-y-4">
               <div>
-                <label className="block text-[11px] font-extrabold text-gray-400 uppercase tracking-wider mb-2">
-                  Días por año completo
+                <label className="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Días otorgados por cada 6 meses trabajados (Periodo semestral)
                 </label>
+                <p className="text-[10px] text-slate-400 mb-2">Días que gana el colaborador al cumplir 6 meses de contrato.</p>
                 <input
                   type="number"
                   min="1"
                   max="40"
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs bg-gray-50 focus:bg-white focus:ring-1 focus:ring-indigo-500 outline-none transition-all font-bold"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-900 outline-none transition-all font-bold"
                   value={tempDaysValue}
                   onChange={(e) => setTempDaysValue(e.target.value)}
                 />
               </div>
 
               <div>
-                <label className="block text-[11px] font-extrabold text-gray-400 uppercase tracking-wider mb-2">
-                  Regla de reinicio / acumulación
+                <label className="block text-[11px] font-extrabold text-slate-700 uppercase tracking-wider mb-1.5">
+                  Regla de renovación / acumulación
                 </label>
                 <select
-                  className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs bg-gray-50 focus:bg-white focus:ring-1 focus:ring-indigo-500 outline-none transition-all font-bold"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-slate-50 focus:bg-white focus:ring-2 focus:ring-slate-900 outline-none transition-all font-bold"
                   value={tempRuleValue}
                   onChange={(e) => setTempRuleValue(e.target.value as 'accumulate' | 'reset-on-anniversary')}
                 >
-                  <option value="accumulate">Acumulativo (Histórico)</option>
-                  <option value="reset-on-anniversary">Reinicio Anual (No Acumulable)</option>
+                  <option value="accumulate">Acumulativo (Histórico por cada 6 meses cumplidos)</option>
+                  <option value="reset-on-anniversary">Reinicio Semestral (Renovación de Contrato cada 6m)</option>
                 </select>
               </div>
 
@@ -496,11 +502,11 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
                 <button
                   type="button"
                   onClick={() => {
-                    setTempDaysValue(String(daysPerYear));
+                    setTempDaysValue(String(daysPer6Months));
                     setTempRuleValue(accumulationRule);
                     setIsConfigModalOpen(false);
                   }}
-                  className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-extrabold text-xs rounded-xl transition-all"
+                  className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl transition-all"
                 >
                   Cancelar
                 </button>
@@ -509,19 +515,19 @@ export const VacationsBalancesTable: React.FC<VacationsBalancesTableProps> = ({ 
                   onClick={() => {
                     const parsed = parseInt(tempDaysValue, 10);
                     if (!isNaN(parsed) && parsed > 0) {
-                      localStorage.setItem('vacationDaysPerYear', String(parsed));
+                      localStorage.setItem('vacationDaysPer6Months', String(parsed));
                       localStorage.setItem('vacationAccumulationRule', tempRuleValue);
-                      setDaysPerYear(parsed);
+                      setDaysPer6Months(parsed);
                       setAccumulationRule(tempRuleValue);
                       setIsConfigModalOpen(false);
                       // Trigger custom events to notify other components
-                      window.dispatchEvent(new Event('vacationDaysPerYearChanged'));
+                      window.dispatchEvent(new Event('vacationDaysPer6MonthsChanged'));
                       window.dispatchEvent(new Event('vacationAccumulationRuleChanged'));
                     }
                   }}
-                  className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-extrabold text-xs rounded-xl shadow-sm transition-all"
+                  className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white font-extrabold text-xs rounded-xl shadow-sm transition-all"
                 >
-                  Guardar
+                  Guardar Cambios
                 </button>
               </div>
             </div>
