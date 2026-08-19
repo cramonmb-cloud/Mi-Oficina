@@ -1,8 +1,8 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { Plus, Trash2, Phone, Mail, User, MapPin, Filter, Layers, Pencil, Lock, Search, X, Building, Link as LinkIcon, FileSpreadsheet, UploadCloud, AlertTriangle, Download, CheckCircle, RefreshCcw, Users, Clipboard, LayoutGrid, Table, Cake, Loader2, FileText, Calendar, Umbrella, Coins, Clock, Check, AlertCircle, MessageSquare, CreditCard, QrCode, Upload, Copy, ExternalLink, ShieldCheck, Eye, Activity, Briefcase } from 'lucide-react';
-import { Employee, PersonnelCategory, Plaza, VacationRequest } from '../types';
-import { addEmployee, deleteEmployee, updateEmployee, addPlaza, deletePlaza, deleteAllEmployees, saveEmployeesBatch, subscribeToVacationRequests, addVacationRequest, updateVacationRequest, deleteVacationRequest } from '../services/dbService';
+import { Employee, PersonnelCategory, Plaza, VacationRequest, EmployeeContract } from '../types';
+import { addEmployee, deleteEmployee, updateEmployee, addPlaza, deletePlaza, deleteAllEmployees, saveEmployeesBatch, subscribeToVacationRequests, addVacationRequest, updateVacationRequest, deleteVacationRequest, subscribeToEmployeeContracts } from '../services/dbService';
 import { VacationsControl } from './VacationsControl';
 import { VacationsBalancesTable } from './VacationsBalancesTable';
 import { ContractsControl } from './ContractsControl';
@@ -80,12 +80,21 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
   // Vacations & Contracts Section State
   const [activeSubSection, setActiveSubSection] = useState<'directory' | 'vacations' | 'balances' | 'contracts'>('directory');
   const [vacationRequests, setVacationRequests] = useState<VacationRequest[]>([]);
+  const [contracts, setContracts] = useState<EmployeeContract[]>([]);
   const [isVacationModalOpen, setIsVacationModalOpen] = useState(false);
 
   useEffect(() => {
     const unsubscribe = subscribeToVacationRequests(
       (data) => setVacationRequests(data),
       (err) => console.error("Error subscribing to vacation requests:", err)
+    );
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const unsubscribe = subscribeToEmployeeContracts(
+      (data) => setContracts(data),
+      (err) => console.error("Error subscribing to contracts:", err)
     );
     return () => unsubscribe();
   }, []);
@@ -2432,29 +2441,87 @@ export const Personnel: React.FC<PersonnelProps> = ({ employees, plazas, isLoadi
                     </div>
 
                     <div className="bg-white p-2.5 rounded-lg border border-slate-200 sm:col-span-2">
-                      <span className="text-[10px] text-slate-400 block font-semibold">Vigencia del Contrato Actual</span>
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider">Vigencia del Contrato Actual</span>
+                        {(() => {
+                          const empContracts = contracts
+                            .filter(c => c.employeeId === viewingEmployeeDetails.id || (c.employeeName && viewingEmployeeDetails.firstName && viewingEmployeeDetails.lastName && c.employeeName.toLowerCase().includes(viewingEmployeeDetails.firstName.toLowerCase()) && c.employeeName.toLowerCase().includes(viewingEmployeeDetails.lastName.toLowerCase())))
+                            .sort((a, b) => {
+                              const timeB = new Date(b.generatedAt || b.startDate + 'T00:00:00').getTime();
+                              const timeA = new Date(a.generatedAt || a.startDate + 'T00:00:00').getTime();
+                              return timeB - timeA;
+                            });
+                          const latest = empContracts[0];
+
+                          if (!latest) return null;
+
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (latest.pdfBase64) {
+                                  const link = document.createElement('a');
+                                  link.href = latest.pdfBase64;
+                                  link.download = latest.fileName || `Contrato_${latest.employeeName.replace(/\s+/g, '_')}_${latest.startDate}.pdf`;
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  document.body.removeChild(link);
+                                } else {
+                                  alert("El documento PDF no está almacenado directamente en este registro histórico. Puedes generarlo desde el módulo de Contratos Laborales.");
+                                }
+                              }}
+                              title="Descargar último contrato laboral generado en PDF"
+                              className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-900 hover:bg-slate-800 text-white rounded-md text-[10px] font-bold transition-all shadow-2xs cursor-pointer group"
+                            >
+                              <Download className="w-3 h-3 text-indigo-400 group-hover:scale-110 transition-transform" />
+                              <span>Descargar Contrato PDF</span>
+                            </button>
+                          );
+                        })()}
+                      </div>
+
                       {viewingEmployeeDetails.contractEndDate ? (
                         <div className="flex items-center justify-between gap-2 mt-0.5 flex-wrap">
-                          <span className="font-mono font-bold text-slate-900">
+                          <span className="font-mono font-bold text-slate-900 text-xs">
                             {viewingEmployeeDetails.contractStartDate || 'Inicio N/A'} ➔ {viewingEmployeeDetails.contractEndDate}
                           </span>
-                          {(() => {
-                            try {
-                              const today = new Date();
-                              today.setHours(0, 0, 0, 0);
-                              const end = new Date(viewingEmployeeDetails.contractEndDate + 'T00:00:00');
-                              const diffDays = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-                              if (diffDays < 0) {
-                                return <span className="text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">🔴 Vencido ({Math.abs(diffDays)}d)</span>;
-                              } else if (diffDays <= 30) {
-                                return <span className="text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">⚠️ Vence en {diffDays}d</span>;
-                              } else {
-                                return <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">🟢 Vigente ({Math.round(diffDays / 30)}m)</span>;
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {(() => {
+                              const empContracts = contracts
+                                .filter(c => c.employeeId === viewingEmployeeDetails.id || (c.employeeName && viewingEmployeeDetails.firstName && viewingEmployeeDetails.lastName && c.employeeName.toLowerCase().includes(viewingEmployeeDetails.firstName.toLowerCase()) && c.employeeName.toLowerCase().includes(viewingEmployeeDetails.lastName.toLowerCase())))
+                                .sort((a, b) => {
+                                  const timeB = new Date(b.generatedAt || b.startDate + 'T00:00:00').getTime();
+                                  const timeA = new Date(a.generatedAt || a.startDate + 'T00:00:00').getTime();
+                                  return timeB - timeA;
+                                });
+                              const latest = empContracts[0];
+                              if (latest?.contractTypeName) {
+                                return (
+                                  <span className="text-[9px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full">
+                                    {latest.contractTypeName}
+                                  </span>
+                                );
                               }
-                            } catch {
                               return null;
-                            }
-                          })()}
+                            })()}
+                            {(() => {
+                              try {
+                                const today = new Date();
+                                today.setHours(0, 0, 0, 0);
+                                const end = new Date(viewingEmployeeDetails.contractEndDate + 'T00:00:00');
+                                const diffDays = Math.ceil((end.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+                                if (diffDays < 0) {
+                                  return <span className="text-[9px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">🔴 Vencido ({Math.abs(diffDays)}d)</span>;
+                                } else if (diffDays <= 30) {
+                                  return <span className="text-[9px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">⚠️ Vence en {diffDays}d</span>;
+                                } else {
+                                  return <span className="text-[9px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">🟢 Vigente ({Math.round(diffDays / 30)}m)</span>;
+                                }
+                              } catch {
+                                return null;
+                              }
+                            })()}
+                          </div>
                         </div>
                       ) : (
                         <span className="text-slate-400 text-xs italic mt-0.5 block">Sin contrato generado aún</span>
